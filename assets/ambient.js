@@ -74,15 +74,25 @@
   }
 
   /* ---------------- shared helpers ---------------- */
-  function makeEl(src, loop) {
-    var a = new Audio();
-    a.src = src;
-    a.loop = !!loop;
-    a.preload = "auto";
-    a.crossOrigin = "anonymous";
-    return a;
+  function getLoopEl() {
+    if (!loopEl) { loopEl = new Audio(); loopEl.loop = true; loopEl.preload = "auto"; loopEl.volume = 0; }
+    return loopEl;
+  }
+  function getMusicEl() {
+    if (!musicEl) { musicEl = new Audio(); musicEl.loop = true; musicEl.preload = "auto"; musicEl.volume = 0; }
+    return musicEl;
+  }
+  // silence an element WITHOUT letting its error handler leak noise:
+  // null the handler FIRST, then unload. Src="" otherwise fires "error", which
+  // used to re-trigger the procedural fallback after the user chose "Mati".
+  function quiet(el) {
+    if (!el) return;
+    el.onerror = null;
+    try { el.pause(); } catch (e) {}
+    try { el.removeAttribute("src"); el.load(); } catch (e) {}
   }
   function crossTo(el, from, to, ms, cb) {
+    el.volume = Math.max(0, Math.min(1, from));
     var t0 = Date.now();
     var iv = setInterval(function () {
       var p = Math.min(1, (Date.now() - t0) / ms);
@@ -91,44 +101,63 @@
       if (p >= 1) { clearInterval(iv); if (cb) cb(); }
     }, 40);
   }
+  // Promise-safe play: browsers reject play() when interrupted (fast toggling,
+  // iOS). Only treat it as a failure worth the procedural fallback if this
+  // element is STILL the active one — otherwise just drop it silently.
+  function safePlay(el, name, fallback) {
+    var p = null;
+    try { p = el.play(); } catch (e) { p = Promise.reject(e); }
+    if (p && p.then) {
+      p.then(function () { crossTo(el, 0, el === loopEl ? soundVol : musicVol, 600); })
+        .catch(function () {
+          // wait a beat: if this element is still the active one, fall back / retry
+          setTimeout(function () {
+            if (el === loopEl && currentLoop === name) fallback();
+            else if (el === musicEl && currentMusic === name) { try { el.play(); } catch (e2) {} }
+          }, 120);
+        });
+    } else { crossTo(el, 0, el === loopEl ? soundVol : musicVol, 600); }
+  }
+
   function playLoop(name) {
-    if (currentLoop === name && loopEl) return;
-    stopLoop();
-    if (name === "off") { currentLoop = "off"; return; }
-    if (!LOOPS[name]) { procStart(name); currentLoop = name; return; }
+    if (name === "off") { stopLoop(); return; }
+    if (!LOOPS[name]) { stopLoop(); procStart(name); currentLoop = name; return; }
+    var el = getLoopEl();
+    if (currentLoop === name && el.src && !el.paused) { crossTo(el, el.volume, soundVol, 250); return; }
+    quiet(el);
+    procStop();
+    el.onerror = null;
+    el.src = BASE + LOOPS[name];
     currentLoop = name;
-    var el = makeEl(BASE + LOOPS[name], true);
+    el.onerror = function () {
+      if (el === loopEl && currentLoop === name) procStart(name);
+    };
     el.volume = 0;
-    el.onerror = function () { procStart(name); };
-    el.play().then(function () { crossTo(el, 0, soundVol, 600); }).catch(function () { procStart(name); });
-    loopEl = el;
+    safePlay(el, name, function () { procStart(name); });
   }
   function stopLoop() {
-    if (loopEl) { try { loopEl.pause(); loopEl.src = ""; } catch (e) {} loopEl = null; }
+    if (loopEl) quiet(loopEl);
     procStop();
     currentLoop = "off";
   }
   function playMusic(name) {
-    if (currentMusic === name && musicEl) return;
-    var old = musicEl;
-    musicEl = null;
-    currentMusic = "off";
-    if (old) { crossTo(old, old.volume, 0, 350, function () { try { old.pause(); } catch (e) {} }); }
-    if (name === "off") return;
+    if (name === "off") { stopMusic(); return; }
     if (!MUSIC[name]) return;
+    var el = getMusicEl();
+    if (currentMusic === name && el.src && !el.paused) { crossTo(el, el.volume, musicVol, 250); return; }
+    quiet(el);
+    el.onerror = null;
+    el.src = BASE + MUSIC[name];
     currentMusic = name;
-    var el = makeEl(BASE + MUSIC[name], true);
     el.volume = 0;
-    el.onerror = function () {};
-    el.play().then(function () { crossTo(el, 0, musicVol, 900); }).catch(function () {});
-    musicEl = el;
+    safePlay(el, name, function () {});
   }
   function stopMusic() {
-    if (musicEl) { try { musicEl.pause(); musicEl.src = ""; } catch (e) {} musicEl = null; }
+    if (musicEl) quiet(musicEl);
     currentMusic = "off";
   }
-  function setVol(v) { soundVol = v; if (loopEl) loopEl.volume = v; if (masterGain) masterGain.gain.value = v; }
-  function setMusicVol(v) { musicVol = v; if (musicEl) musicEl.volume = v; }
+  function setVol(v) { soundVol = v; if (loopEl && loopEl.src) loopEl.volume = v; if (masterGain) masterGain.gain.value = v; }
+  function setMusicVol(v) { musicVol = v; if (musicEl && musicEl.src) musicEl.volume = v; }
 
   /* ---------------- expose (backward-compatible surface) ---------------- */
   window.MT_AMBIENT = {
