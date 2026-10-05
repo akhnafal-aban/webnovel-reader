@@ -79,7 +79,9 @@ a { color: var(--accent-ink); text-decoration: none; }
 /* =========================================================================
    APP SHELL
    ========================================================================= */
-#app-root { height: 100dvh; height: 100vh; display: flex; flex-direction: column; position: relative; isolation: isolate; }
+#app-root { height: 100vh; height: 100dvh; display: flex; flex-direction: column; position: relative; isolation: isolate; }
+/* NOTE: 100dvh MUST be the last declaration — iOS Safari's url/tab bar overlay the
+   100vh viewport, hiding the bottom of the reader (end-of-chapter buttons). */
 /* The <main id="app"> must fill the remaining height after the topbar AND be a flex
    column so the active .view (flex:1) can fill it. Without this, .reader-stage collapses
    to 0 height and both paged and scroll reading are clipped/invisible. */
@@ -290,7 +292,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 }
 .prose {
   width: 100%; max-width: var(--reader-col);
-  padding: var(--sp-12) var(--sp-6) var(--sp-24);
+  padding: var(--sp-12) var(--sp-6) calc(var(--sp-24) + env(safe-area-inset-bottom, 0px));
   font-family: var(--font-novel);
   font-size: var(--reader-fz);
   line-height: var(--reader-lh);
@@ -345,7 +347,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 .prose .tts-sent { background: var(--accent-soft); border-radius: 2px; box-shadow: 0 0 0 2px var(--accent); }
 
 /* ---- End-of-chapter CTA ---- */
-.chap-end { margin-top: var(--sp-8); padding-top: var(--sp-6); border-top: 1px solid var(--line); text-align: center; }
+.chap-end { margin-top: var(--sp-8); padding-top: var(--sp-6); padding-bottom: calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line); text-align: center; }
 .chap-end-label { font-family: var(--font-ui); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: var(--sp-3); }
 .chap-end-cta { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-novel); font-size: 1.1em; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r-md); padding: 12px 24px; cursor: pointer; transition: all var(--dur-fast) var(--ease-out); min-height: 44px; }
 .chap-end-cta:hover { background: var(--accent); color: var(--on-accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
@@ -617,7 +619,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 
 @media (max-width: 600px) {
   .reader-chaptitle { font-size: 12px; }
-  .prose { padding: var(--sp-8) var(--sp-4) var(--sp-20); }
+  .prose { padding: var(--sp-8) var(--sp-4) calc(var(--sp-24) + env(safe-area-inset-bottom, 0px)); }
   .lib-wrap { padding: var(--sp-5) var(--sp-3) var(--sp-12); }
   .stage-row { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-4); }
   .reader-toolbar { padding: var(--sp-1) var(--sp-2); gap: 0; }
@@ -807,6 +809,12 @@ body.indent-on .prose .pov-line { text-indent: 0; }
 @media (max-width: 430px) {
   .fab-as { width: 48px; height: 48px; }
   .as-panel { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+}
+/* mobile: browser bottom bar overlays the viewport — lift the end-of-chapter
+   controls well above it so they stay tappable at max scroll */
+@media (max-width: 430px) {
+  .reader-scroller { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .chap-end { margin-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fab-as .fab-as-ripple { animation: none !important; }
