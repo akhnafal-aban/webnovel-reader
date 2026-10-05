@@ -810,10 +810,11 @@ body.indent-on .prose .pov-line { text-indent: 0; }
   .fab-as { width: 48px; height: 48px; }
   .as-panel { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
 }
-/* mobile: browser bottom bar overlays the viewport — lift the end-of-chapter
-   controls well above it so they stay tappable at max scroll */
+/* mobile: browser bottom bar overlays the viewport — a real spacer after the
+   end-of-chapter controls lifts them above the bar at max scroll */
+.prose .chap-end-spacer { height: 0; }
 @media (max-width: 430px) {
-  .reader-scroller { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .prose .chap-end-spacer { height: calc(72px + env(safe-area-inset-bottom, 0px)); }
   .chap-end { margin-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) {

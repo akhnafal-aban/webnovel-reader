@@ -578,6 +578,11 @@
       foot.innerHTML = '<div class="chap-end-done">✓ Bab terakhir volume ini</div>';
     }
     prose.appendChild(foot);
+    // spacer so end-of-chapter controls clear the mobile browser bar at max scroll
+    var spacer = document.createElement("div");
+    spacer.className = "chap-end-spacer";
+    spacer.setAttribute("aria-hidden", "true");
+    prose.appendChild(spacer);
 
     // volume finale — last chapter of the volume
     if (c === maxChap) {
