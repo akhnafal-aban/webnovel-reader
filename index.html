@@ -6,10 +6,10 @@
   <meta name="color-scheme" content="dark light" />
   <meta name="description" content="Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline." />
   <title>MT Reader — Pembaca Novel</title>
-  <link rel="manifest" href="manifest.webmanifest?v=12" />
-  <link rel="icon" href="img/v15/thumbs/illust_p001.jpg?v=12" />
-  <link rel="stylesheet" href="assets/tokens.css?v=12" />
-  <link rel="stylesheet" href="assets/app.css?v=12" />
+  <link rel="manifest" href="manifest.webmanifest?v=13" />
+  <link rel="icon" href="img/v15/thumbs/illust_p001.jpg?v=13" />
+  <link rel="stylesheet" href="assets/tokens.css?v=13" />
+  <link rel="stylesheet" href="assets/app.css?v=13" />
 <script>
 // Unregister legacy SW (assets/sw.js scope /assets/) sebelum app load
 if ("serviceWorker" in navigator) {
@@ -47,6 +47,8 @@ if ("serviceWorker" in navigator) {
         </button>
       </div>
     </header>
+    <!-- visually-hidden live region for screen readers -->
+    <span id="sr-status" class="sr-only" aria-live="polite" aria-atomic="true"></span>
 
     <!-- ===================== VIEWS ===================== -->
     <main id="app">
@@ -56,7 +58,7 @@ if ("serviceWorker" in navigator) {
         <div class="lib-wrap">
           <div id="continue-slot"></div>
           <div class="sect-head">
-            <h2 class="sect-title">Rak <em>Buku</em></h2>
+            <h1 class="sect-title">Rak <em>Buku</em></h1>
             <span class="sect-sub" id="lib-count">— volume</span>
           </div>
           <div id="stage" class="stage">
@@ -143,7 +145,7 @@ if ("serviceWorker" in navigator) {
       <div class="search-bar">
         <input id="search-input" type="search" placeholder="Cari kata atau frasa…" autocomplete="off" spellcheck="false" aria-label="Cari di semua buku" />
       </div>
-      <div class="sheet-body" id="search-results"></div>
+      <div class="sheet-body" id="search-results" aria-live="polite" aria-atomic="false"></div>
     </aside>
 
     <!-- ===================== SHEET: MARKS ===================== -->
@@ -260,21 +262,21 @@ if ("serviceWorker" in navigator) {
   </div>
 
   <!-- ===================== DATA (preload, defines globals) ===================== -->
-  <script src="data/books.js?v=12"></script>
-  <script src="data/v15/chapters.js?v=12"></script>
-  <script src="data/v16/chapters.js?v=12"></script>
-  <script src="data/v17/chapters.js?v=12"></script>
-  <script src="data/v18/chapters.js?v=12"></script>
-  <script src="data/v19/chapters.js?v=12"></script>
-  <script src="data/v20/chapters.js?v=12"></script>
-  <script src="data/v21/chapters.js?v=12"></script>
-  <script src="data/v22/chapters.js?v=12"></script>
-  <script src="data/v23/chapters.js?v=12"></script>
+  <script src="data/books.js?v=13"></script>
+  <script src="data/v15/chapters.js?v=13"></script>
+  <script src="data/v16/chapters.js?v=13"></script>
+  <script src="data/v17/chapters.js?v=13"></script>
+  <script src="data/v18/chapters.js?v=13"></script>
+  <script src="data/v19/chapters.js?v=13"></script>
+  <script src="data/v20/chapters.js?v=13"></script>
+  <script src="data/v21/chapters.js?v=13"></script>
+  <script src="data/v22/chapters.js?v=13"></script>
+  <script src="data/v23/chapters.js?v=13"></script>
   <!-- vendored anime.js v4.5.0 (offline) -->
-  <script src="assets/vendor/animejs.umd.js?v=12"></script>
+  <script src="assets/vendor/animejs.umd.js?v=13"></script>
   <!-- app modules -->
-  <script src="assets/lightbox.js?v=12"></script>
-  <script src="assets/tts.js?v=12"></script>
-  <script src="assets/app.js?v=12"></script>
+  <script src="assets/lightbox.js?v=13"></script>
+  <script src="assets/tts.js?v=13"></script>
+  <script src="assets/app.js?v=13"></script>
 </body>
 </html>

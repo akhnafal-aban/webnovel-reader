@@ -8,6 +8,9 @@
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* ---- Screen-reader-only utility ---- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 html, body { height: 100%; }
 body {
   font-family: var(--font-ui);
@@ -301,7 +304,7 @@ a { color: var(--accent-ink); text-decoration: none; }
   orphans: 2; widows: 2;
 }
 .prose p.pov-line { color: var(--accent-ink); font-family: var(--font-ui); font-weight: 700; font-size: .9em; letter-spacing: .04em; margin-bottom: .4em; }
-.prose p.pagemark { color: var(--ink-faint); font-family: var(--font-mono); font-size: .78em; margin-bottom: .2em; }
+.prose .pagemark { color: var(--ink-faint); font-family: var(--font-mono); font-size: .72em; margin: 0 .15em; letter-spacing: .02em; opacity: .7; white-space: nowrap; }
 .prose em { font-style: italic; }
 .prose .orn {
   text-align: center; margin: var(--sp-8) 0; color: var(--accent-ink);
@@ -335,6 +338,16 @@ a { color: var(--accent-ink); text-decoration: none; }
 }
 .prose p.tts-active { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); transition: background var(--dur-tiny) var(--ease-out); }
 .prose .tts-sent { background: var(--accent-soft); border-radius: 2px; box-shadow: 0 0 0 2px var(--accent); }
+
+/* ---- End-of-chapter CTA ---- */
+.chap-end { margin-top: var(--sp-8); padding-top: var(--sp-6); border-top: 1px solid var(--line); text-align: center; }
+.chap-end-label { font-family: var(--font-ui); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: var(--sp-3); }
+.chap-end-cta { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-novel); font-size: 1.1em; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--r-md); padding: 12px 24px; cursor: pointer; transition: all var(--dur-fast) var(--ease-out); min-height: 44px; }
+.chap-end-cta:hover { background: var(--accent); color: var(--on-accent); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+.chap-end-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chap-end-arrow { font-size: 1.2em; transition: transform var(--dur-fast) var(--ease-out); }
+.chap-end-cta:hover .chap-end-arrow { transform: translateX(4px); }
+.chap-end-done { font-family: var(--font-ui); font-size: .9em; color: var(--ink-faint); padding: 12px; }
 
 /* ---- Paged mode ---- */
 .reader-scroller.paged {
@@ -481,10 +494,12 @@ a { color: var(--accent-ink); text-decoration: none; }
 .seg button { flex: 1; min-height: var(--tap); border-radius: var(--r-xs); font-size: 12px; font-weight: 600; color: var(--ink-soft); transition: all var(--dur-micro) var(--ease-out); }
 .seg button.is-active { background: var(--accent); color: var(--on-accent); }
 
-.range { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--line-strong); outline: none; }
+.range { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; min-height: 44px; background: transparent; cursor: pointer; }
+.range::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: var(--line-strong); }
+.range::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-strong); }
 .range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px var(--bg-elev); }
-.range::-moz-range-thumb { width: 18px; height: 18px; border: none; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -9px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px var(--bg-elev); }
+.range::-moz-range-thumb { width: 22px; height: 22px; border: none; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px var(--bg-elev); }
 
 /* =========================================================================
    TTS PANEL

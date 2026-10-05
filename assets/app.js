@@ -66,8 +66,8 @@
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return ENT[c]; }); }
   function processParagraph(text, pi) {
     var s = esc(text);
-    // page marker prefix like [p.10]
-    s = s.replace(/^(\[p\.\d+\])\s*/, '<span class="pagemark">$1</span> ');
+    // page markers like [p.10] — wrap ALL occurrences (inline or prefix)
+    s = s.replace(/\[p\.(\d+)\]/g, '<span class="pagemark">[p.$1]</span> ');
     // italic *x*
     s = s.replace(/\*([^*]+)\*/g, "<em>$1</em>");
     return s;
@@ -124,9 +124,9 @@
     var rngFz = $("#rng-fz"); if (rngFz) rngFz.value = prefs.fz;
     var rngLh = $("#rng-lh"); if (rngLh) rngLh.value = prefs.lh;
     var rngCol = $("#rng-col"); if (rngCol) rngCol.value = prefs.col;
-    $$("#swatches .swatch").forEach(function (s) { s.classList.toggle("is-active", s.getAttribute("data-t") === prefs.theme); });
-    $$("#seg-mode button").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-m") === prefs.mode); });
-    $$("#seg-font button").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-f") === prefs.font); });
+    $$("#swatches .swatch").forEach(function (s) { var on = s.getAttribute("data-t") === prefs.theme; s.classList.toggle("is-active", on); s.setAttribute("aria-pressed", String(on)); });
+    $$("#seg-mode button").forEach(function (b) { var on = b.getAttribute("data-m") === prefs.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    $$("#seg-font button").forEach(function (b) { var on = b.getAttribute("data-f") === prefs.font; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     var btnMode = $("#btn-mode"); if (btnMode) btnMode.setAttribute("aria-pressed", String(prefs.mode === "paged"));
   }
   function savePrefs() { save(KEYS.prefs, prefs); }
@@ -300,6 +300,9 @@
 
     // toolbar title
     $("#reader-chaptitle").innerHTML = "<b>" + esc(book.title) + "</b> · " + esc(ch.title || "");
+    // announce chapter change to screen readers
+    var sr = $("#sr-status");
+    if (sr) sr.textContent = "Bab " + (c + 1) + ": " + (ch.title || "");
 
     // progress save (chapter reached). Reset per-chapter scroll/page when the chapter actually
     // changes so we never restore a previous chapter's position into a new one.
@@ -314,10 +317,12 @@
     // build prose
     var prose = $("#prose");
     prose.innerHTML = "";
+    var words = chapterWords(ch);
+    var readMin = Math.max(1, Math.round(words / 250));
     var head = document.createElement("header");
     head.className = "chapter-head";
     head.innerHTML =
-      '<div class="chapter-kicker">VOL ' + String(book.num).padStart(2, "0") + " · BAB " + (c + 1) + "</div>" +
+      '<div class="chapter-kicker">VOL ' + String(book.num).padStart(2, "0") + " · BAB " + (c + 1) + " · ≈ " + readMin + " mnt</div>" +
       '<h1 class="chapter-title">' + esc(ch.title || "") + "</h1>";
     prose.appendChild(head);
 
@@ -369,11 +374,29 @@
     prose._figs = figs;
     prose._vid = vid; prose._c = c;
 
+    // end-of-chapter CTA: next chapter or "selesai"
+    var maxChap = chaptersOf(vid).length - 1;
+    var foot = document.createElement("footer");
+    foot.className = "chap-end";
+    if (c < maxChap) {
+      var nextCh = chaptersOf(vid)[c + 1];
+      foot.innerHTML = '<div class="chap-end-label">Bab berikutnya</div>' +
+        '<button class="chap-end-cta" data-action="next-chap-end" role="button">' +
+        '<span class="chap-end-arrow">→</span> ' + esc(nextCh ? (nextCh.title || "Bab " + (c + 2)) : "Bab " + (c + 2)) + '</button>';
+    } else {
+      foot.innerHTML = '<div class="chap-end-done">✓ Bab terakhir volume ini</div>';
+    }
+    prose.appendChild(foot);
+
+    // apply highlights (offset-based, works across inline tags)
+    applyHighlightsToProse();
+
     // mode
     applyMode();
 
-    // entrance animation
-    if (!reduceMotion && window.anime) {
+    // entrance animation — gate on chapter change only (avoids re-fade on highlight/bookmark toggle)
+    if (!reduceMotion && window.anime && state._lastChapKey !== (vid + ":" + c)) {
+      state._lastChapKey = vid + ":" + c;
       try {
         anime({ targets: "#prose > *", translateY: [14, 0], opacity: [0, 1], delay: anime.stagger(40, { start: 40 }), duration: 380, ease: "outQuad" });
       } catch (e) {}
@@ -388,17 +411,7 @@
 
   function renderParagraphInner(vid, c, pi, text) {
     var s = processParagraph(text, pi);
-    // apply highlights for this paragraph
-    var matches = hls.filter(function (h) { return h.vid === vid && h.c === c && h.pi === pi; });
-    matches.forEach(function (h, hi) {
-      var needle = esc(h.text);
-      if (!needle) return;
-      var idx = s.indexOf(needle);
-      if (idx >= 0) {
-        var id = h.vid + ":" + h.c + ":" + h.pi + ":" + hi;
-        s = s.slice(0, idx) + '<mark class="hl" data-action="hl-click" data-id="' + id + '">' + s.slice(idx, idx + needle.length) + "</mark>" + s.slice(idx + needle.length);
-      }
-    });
+    // highlights applied after DOM render via applyHighlightsToProse (offset-based)
     return s;
   }
 
@@ -462,7 +475,18 @@
 
   function setPage(p) {
     if (state.mode !== "paged") return;
-    p = clamp(p, 0, state.pageCount - 1);
+    // auto-advance to next chapter at last page
+    if (p > state.pageCount - 1) {
+      var maxChap = chaptersOf(state.vid).length - 1;
+      if (state.c < maxChap) { goChapter(state.c + 1); return; }
+      toast("Sudah di bab terakhir");
+      return;
+    }
+    if (p < 0) {
+      if (state.c > 0) { goChapter(state.c - 1); return; }
+      toast("Sudah di bab pertama");
+      return;
+    }
     if (p === state.page) return;
     state.page = p;
     $("#prose").style.setProperty("--page", state.page);
@@ -708,11 +732,92 @@
     if (isNaN(pi)) return;
     var txt = sel.toString().replace(/\s+/g, " ").trim();
     if (txt.length < 2) return;
-    hls.push({ vid: state.vid, c: state.c, pi: pi, text: txt, ts: Date.now() });
+    // compute char offsets within the paragraph's textContent
+    var range = sel.getRangeAt(0);
+    var pText = p.textContent;
+    var start = 0, end = 0;
+    try {
+      var preRange = document.createRange();
+      preRange.setStart(p, 0);
+      preRange.setEnd(range.startContainer, range.startOffset);
+      start = preRange.toString().length;
+      end = start + range.toString().length;
+    } catch (e) { start = 0; end = txt.length; }
+    hls.push({ vid: state.vid, c: state.c, pi: pi, text: txt, start: start, end: end, ts: Date.now() });
     save(KEYS.hls, hls);
     sel.removeAllRanges();
     toast("Disorot");
     renderReader();
+  }
+  // wrap a range across tag boundaries using <mark>
+  function wrapRangeWithMark(range, id) {
+    var walker = document.createTreeWalker(range.commonAncestorContainer, NodeFilter.SHOW_TEXT, null);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(function (node) {
+      if (!range.intersectsNode(node)) return;
+      var start = (node === range.startContainer) ? range.startOffset : 0;
+      var end = (node === range.endContainer) ? range.endOffset : node.nodeValue.length;
+      if (start === end) return;
+      var before = node.nodeValue.slice(0, start);
+      var marked = node.nodeValue.slice(start, end);
+      var after = node.nodeValue.slice(end);
+      var mark = document.createElement("mark");
+      mark.className = "hl";
+      mark.setAttribute("data-action", "hl-click");
+      mark.setAttribute("data-id", id);
+      mark.textContent = marked;
+      var parent = node.parentNode;
+      if (before) parent.insertBefore(document.createTextNode(before), node);
+      parent.insertBefore(mark, node);
+      if (after) parent.insertBefore(document.createTextNode(after), node);
+      parent.removeChild(node);
+    });
+  }
+  function applyHighlightsToProse() {
+    var prose = $("#prose");
+    if (!prose || !prose._vid) return;
+    var vid = prose._vid, c = prose._c;
+    var paras = prose.querySelectorAll("p[data-pi]");
+    paras.forEach(function (pEl) {
+      var pi = parseInt(pEl.getAttribute("data-pi"), 10);
+      if (isNaN(pi)) return;
+      var matches = hls.filter(function (h) { return h.vid === vid && h.c === c && h.pi === pi; });
+      if (!matches.length) return;
+      matches.forEach(function (h, hi) {
+        // offset-based: works across <em> and other inline tags
+        if (typeof h.start === "number" && typeof h.end === "number" && h.end > h.start) {
+          try {
+            var walker = document.createTreeWalker(pEl, NodeFilter.SHOW_TEXT, null);
+            var n, off = 0, rs = null, re = null;
+            while ((n = walker.nextNode())) {
+              var len = n.nodeValue.length;
+              if (!rs && off + len >= h.start) rs = { n: n, o: Math.max(0, h.start - off) };
+              if (!re && off + len >= h.end) re = { n: n, o: Math.max(0, h.end - off) };
+              off += len;
+              if (rs && re) break;
+            }
+            if (rs && re) {
+              var r = document.createRange();
+              r.setStart(rs.n, Math.min(rs.o, rs.n.nodeValue.length));
+              r.setEnd(re.n, Math.min(re.o, re.n.nodeValue.length));
+              var id = vid + ":" + c + ":" + pi + ":" + hi;
+              wrapRangeWithMark(r, id);
+            }
+          } catch (e) {}
+        } else {
+          // legacy: text-based fallback for old highlights without offsets
+          var needle = esc(h.text);
+          if (!needle) return;
+          var html = pEl.innerHTML;
+          var idx = html.indexOf(needle);
+          if (idx >= 0) {
+            var id = vid + ":" + c + ":" + pi + ":" + hi;
+            pEl.innerHTML = html.slice(0, idx) + '<mark class="hl" data-action="hl-click" data-id="' + id + '">' + html.slice(idx, idx + needle.length) + "</mark>" + html.slice(idx + needle.length);
+          }
+        }
+      });
+    });
   }
   function renderStats() {
     var box = $("#stats-body");
@@ -741,6 +846,7 @@
      ============================================================ */
   var SCRIM = $("#scrim");
   var lastFocus = null;
+  var sheetFocusTrap = null;
   function openSheet(id) {
     closeSheets();
     var el = $("#" + id);
@@ -748,13 +854,30 @@
     lastFocus = document.activeElement;
     el.classList.add("is-open");
     el.setAttribute("aria-hidden", "false");
+    if ("inert" in el) el.inert = false;
     SCRIM.classList.add("is-open");
     // move focus into the sheet so keyboard users land inside
     var closer = el.querySelector('[data-action="close-sheets"]');
     if (closer) closer.focus({ preventScroll: true });
+    // focus trap: cycle Tab/Shift+Tab within the open sheet
+    sheetFocusTrap = function (e) {
+      if (e.key !== "Tab") return;
+      var f = el.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (!f.length) return;
+      var first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    el.addEventListener("keydown", sheetFocusTrap);
   }
   function closeSheets() {
-    $$(".sheet").forEach(function (s) { s.classList.remove("is-open"); s.setAttribute("aria-hidden", "true"); });
+    $$(".sheet").forEach(function (s) {
+      s.classList.remove("is-open");
+      s.setAttribute("aria-hidden", "true");
+      if ("inert" in s) s.inert = true;
+      if (sheetFocusTrap) s.removeEventListener("keydown", sheetFocusTrap);
+    });
+    sheetFocusTrap = null;
     SCRIM.classList.remove("is-open");
     closeSettings();
     if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} lastFocus = null; }
@@ -797,6 +920,7 @@
       }
       case "prev-chap": goChapter(state.c - 1); break;
       case "next-chap": goChapter(state.c + 1); break;
+      case "next-chap-end": goChapter(state.c + 1); break;
       case "open-toc": renderTOC(); openSheet("sheet-toc"); break;
       case "open-search": openSheet("sheet-search"); setTimeout(function () { $("#search-input").focus(); }, 240); runSearch($("#search-input").value); break;
       case "open-marks": renderMarks(); openSheet("sheet-marks"); break;
@@ -808,7 +932,6 @@
         closeSheets();
         state.vid = sv; state.c = sc;
         navigate("r/" + sv + "/" + sc, { replace: true });
-        renderReader();
         // jump to paragraph
         requestAnimationFrame(function () {
           var target = $('#prose p[data-pi="' + spi + '"]');
@@ -821,7 +944,6 @@
         closeSheets();
         state.vid = mv; state.c = mc;
         navigate("r/" + mv + "/" + mc, { replace: true });
-        renderReader();
         requestAnimationFrame(function () {
           var t = $('#prose p[data-pi="' + mpi + '"]');
           if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
@@ -843,7 +965,6 @@
         closeSheets();
         state.vid = hgv; state.c = hgc;
         navigate("r/" + hgv + "/" + hgc, { replace: true });
-        renderReader();
         requestAnimationFrame(function () {
           var t = $('#prose p[data-pi="' + hgpi + '"]');
           if (t) t.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -931,12 +1052,17 @@
   function goChapter(c) {
     if (navLock) return;
     var max = chaptersOf(state.vid).length - 1;
-    c = clamp(c, 0, max);
-    if (c === state.c) return;
+    var clamped = clamp(c, 0, max);
+    if (clamped === state.c) {
+      // at boundary — give feedback
+      if (c < 0) toast("Sudah di bab pertama");
+      else if (c > max) toast("Sudah di bab terakhir");
+      return;
+    }
     navLock = true;
-    state.c = c;
+    state.c = clamped;
     state.page = 0;
-    navigate("r/" + state.vid + "/" + c, { replace: true });
+    navigate("r/" + state.vid + "/" + clamped, { replace: true });
     renderReader();
     setTimeout(function () { navLock = false; }, reduceMotion ? 60 : 260);
   }
@@ -963,9 +1089,9 @@
       return;
     }
     switch (e.key) {
-      case "ArrowRight": case "PageDown": if (state.mode === "paged") { e.preventDefault(); setPage(state.page + 1); } break;
-      case " ": if (state.mode === "paged") { e.preventDefault(); setPage(state.page + 1); } break;
-      case "ArrowLeft": case "PageUp": if (state.mode === "paged") { e.preventDefault(); setPage(state.page - 1); } break;
+      case "ArrowRight": case "PageDown": if (state.mode === "paged") { e.preventDefault(); setPage(state.page + 1); } else { e.preventDefault(); $("#reader-scroller").scrollBy({ top: window.innerHeight * 0.85, behavior: "smooth" }); } break;
+      case " ": if (state.mode === "paged") { e.preventDefault(); setPage(state.page + 1); } else { e.preventDefault(); $("#reader-scroller").scrollBy({ top: window.innerHeight * 0.85, behavior: "smooth" }); } break;
+      case "ArrowLeft": case "PageUp": if (state.mode === "paged") { e.preventDefault(); setPage(state.page - 1); } else { e.preventDefault(); $("#reader-scroller").scrollBy({ top: -window.innerHeight * 0.85, behavior: "smooth" }); } break;
       case "[": goChapter(state.c - 1); break;
       case "]": goChapter(state.c + 1); break;
       case "t": handle("open-toc", null); break;
@@ -1060,11 +1186,15 @@
         return navigator.serviceWorker.register("sw.js").catch(function () { /* offline not available */ });
       }).catch(function () {});
     });
+    // notify on update
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (window.MT_App && MT_App.toast) toast("Pembaruan tersedia — muat ulang untuk versi baru");
+    });
   }
 
   /* ---------------- boot ---------------- */
   window.addEventListener("popstate", route);
-  window.addEventListener("hashchange", route);
+  // hashchange is redundant with popstate (fires on same navigation); skip to avoid double render
   applyPrefs();
   renderLib();
   route();
