@@ -4,7 +4,7 @@
    network-first for JS/CSS/data/HTML (always fresh when online),
    cache-first for images. Offline-friendly PWA. Zero deps.
    ========================================================================= */
-var CACHE = "mt-reader-v6";
+var CACHE = "mt-reader-v7";
 var CORE = [
   "./",
   "./index.html",
@@ -72,7 +72,7 @@ self.addEventListener("fetch", function (e) {
     e.respondWith(caches.open(CACHE).then(function (c) {
       return c.match(req).then(function (hit) {
         if (hit) return hit;
-        return fetch(req).then(function (res) {
+        return fetch(req, { cache: "no-store" }).then(function (res) {
           if (res && res.ok) c.put(req, res.clone());
           return res;
         }).catch(function () { return c.match(req); });
@@ -81,8 +81,12 @@ self.addEventListener("fetch", function (e) {
     return;
   }
 
-  // network-first for JS/CSS/data/HTML; offline fallback to cache, then app shell for navigations
-  e.respondWith(fetch(req).then(function (res) {
+  // network-first for JS/CSS/data/HTML with NO HTTP-cache reuse: GitHub Pages sends
+  // max-age=600, and fetch()'s default cache mode would happily serve 10-minute-old
+  // assets as fresh — intermittently resurrecting old JS/CSS until a hard refresh.
+  // no-store forces the true origin every time; offline fallback to SW cache, then
+  // the cached app shell for navigations.
+  e.respondWith(fetch(req, { cache: "no-store" }).then(function (res) {
     if (res && res.ok) {
       var clone = res.clone();
       caches.open(CACHE).then(function (c) { c.put(req, clone); }).catch(function () {});

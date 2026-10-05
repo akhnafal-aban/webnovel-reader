@@ -1889,6 +1889,13 @@
   });
 
   /* ---------------- boot ---------------- */
+  // bfcache guard: coming back to this tab via back/forward restores the OLD page
+  // snapshot (previous JS bundle, stale layout). Reading position is persisted in
+  // prog, so a soft reload loses nothing and guarantees the current version.
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) { try { location.reload(); } catch (err) {} }
+  });
+  window.MT_BUILD = "24";
   window.addEventListener("popstate", route);
   // hashchange is redundant with popstate (fires on same navigation); skip to avoid double render
   applyPrefs();
