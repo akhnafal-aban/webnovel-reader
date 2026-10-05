@@ -24,6 +24,17 @@
   }
   function bookById(vid) { for (var i = 0; i < BOOKS.length; i++) if (BOOKS[i].id === vid) return BOOKS[i]; return null; }
 
+  /* ---------------- meta (chars / terms / recap) ---------------- */
+  // Merge __MT_META_A__ / __MT_META_B__ (guarded — globals may not exist yet).
+  var META = (function () {
+    var m = {};
+    try {
+      if (window.__MT_META_A__ && typeof window.__MT_META_A__ === "object") m = Object.assign(m, window.__MT_META_A__);
+      if (window.__MT_META_B__ && typeof window.__MT_META_B__ === "object") m = Object.assign(m, window.__MT_META_B__);
+    } catch (e) {}
+    return m;
+  })();
+
   /* ---------------- storage ---------------- */
   var KEYS = { prefs: "mt:prefs", prog: "mt:prog", bms: "mt:bms", hls: "mt:hls", stats: "mt:stats" };
   function load(key, dflt) {
@@ -42,14 +53,21 @@
   }
   function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
-  var prefs = load(KEYS.prefs, { theme: "ink", mode: "scroll", font: "novel", fz: 19, lh: 1.75, col: 34, autoScroll: false, autoScrollSpeed: 1 });
+  var prefs = load(KEYS.prefs, {
+    theme: "ink", mode: "scroll", font: "novel", fz: 19, lh: 1.75, col: 34,
+    autoScroll: false, autoScrollSpeed: 1,
+    focus: "off", bionic: false, dys: false,
+    ambient: "off", ambientVol: 0.35,
+    goalBab: 0, themeAuto: "off", align: "left", indent: false,
+    recapSeen: {}
+  });
   var prog = load(KEYS.prog, {});
   var bms = load(KEYS.bms, []);
   var hls = load(KEYS.hls, []);
   var stats = load(KEYS.stats, { totalWords: 0, days: {}, lastDate: null, chapters: {} });
 
   /* ---------------- state ---------------- */
-  var state = { view: "lib", vid: null, c: 0, page: 0, pageCount: 1, mode: prefs.mode || "scroll" };
+  var state = { view: "lib", vid: null, c: 0, page: 0, pageCount: 1, mode: prefs.mode || "scroll", tocTab: "toc" };
   var navLock = false;
 
   /* ---------------- toast ---------------- */
@@ -66,6 +84,20 @@
   function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return ENT[c]; }); }
   function processParagraph(text, pi) {
     var s = esc(text);
+    // bionic reading — bold first ~40% of each alphabetic word (entity-safe, runs
+    // before any markup is inserted so HTML tags are never corrupted). Skipped for
+    // pov-lines (rendered via textContent) and figures.
+    if (prefs.bionic) {
+      s = s.replace(/(&[a-z]+;)|\b[A-Za-zÀ-ÿ]+\b/g, function (m, ent) {
+        if (ent) return ent;
+        var w = m;
+        if (w.length < 3) return w;
+        var n = Math.ceil(w.length * 0.4);
+        if (n > w.length - 1) n = w.length - 1;
+        if (n < 1) n = 1;
+        return '<b class="fx">' + w.slice(0, n) + '</b>' + w.slice(n);
+      });
+    }
     // page markers like [p.10] — wrap ALL occurrences (inline or prefix)
     s = s.replace(/\[p\.(\d+)\]/g, '<span class="pagemark">[p.$1]</span> ');
     // italic *x*
@@ -85,12 +117,50 @@
     if (!ch) return;
     var t = todayKey();
     if (stats.chapters[key] === t) return; // already counted today
+    var isNewDay = !stats.days[t];
     var w = chapterWords(ch);
     stats.chapters[key] = t;
     stats.totalWords += w;
     stats.days[t] = (stats.days[t] || 0) + w;
     stats.lastDate = t;
     save(KEYS.stats, stats);
+    // streak flame: animate once per session when a new day is first recorded
+    if (isNewDay && !state._flameAnimated) {
+      state._flameAnimated = true;
+      animateFlame();
+    }
+    updateFlame();
+    // reading goal: toast + pulse when today's chapter count crosses the goal exactly
+    if (prefs.goalBab > 0) {
+      var todayCount = 0;
+      for (var k in stats.chapters) if (stats.chapters[k] === t) todayCount++;
+      if (todayCount === prefs.goalBab) {
+        toast("\u2726 Target tercapai!");
+        pulseGoalCell();
+      }
+    }
+  }
+  function updateFlame() {
+    var flame = $("#streak-flame");
+    if (!flame) return;
+    var streak = computeStreak();
+    var show = streak >= 1;
+    flame.hidden = !show;
+    if (show) flame.title = streak + " hari beruntun";
+  }
+  function animateFlame() {
+    var flame = $("#streak-flame");
+    if (!flame || reduceMotion || !window.anime) return;
+    try { anime({ targets: flame, scale: [0.4, 1.2, 1], duration: 700, easing: "easeOutElastic(1, .6)" }); } catch (e) {}
+  }
+  function pulseGoalCell() {
+    if (reduceMotion) return;
+    var cell = $("#goal-ring");
+    if (!cell) return;
+    try {
+      if (window.anime) anime({ targets: cell, scale: [1, 1.12, 1], duration: 560, easing: "easeOutQuad" });
+      else if (cell.animate) cell.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 560, easing: "ease-out" });
+    } catch (e) {}
   }
   function computeStreak() {
     var streak = 0, d = new Date();
@@ -115,7 +185,6 @@
     var prose = $("#prose");
     if (prose) prose.setAttribute("data-font", prefs.font);
     // settings UI sync
-    var tv = $("#theme-val"); if (tv) tv.textContent = prefs.theme;
     var mv = $("#mode-val"); if (mv) mv.textContent = prefs.mode === "paged" ? "halaman" : "gulir";
     var fv = $("#font-val"); if (fv) fv.textContent = prefs.font === "ui" ? "sans" : "serif";
     var fzv = $("#fz-val"); if (fzv) fzv.textContent = prefs.fz + "px";
@@ -124,7 +193,15 @@
     var rngFz = $("#rng-fz"); if (rngFz) rngFz.value = prefs.fz;
     var rngLh = $("#rng-lh"); if (rngLh) rngLh.value = prefs.lh;
     var rngCol = $("#rng-col"); if (rngCol) rngCol.value = prefs.col;
-    $$("#swatches .swatch").forEach(function (s) { var on = s.getAttribute("data-t") === prefs.theme; s.classList.toggle("is-active", on); s.setAttribute("aria-pressed", String(on)); });
+    // swatch active state: the "auto" swatch is active when themeAuto != off,
+    // otherwise the swatch matching the resolved theme is active.
+    var autoOn = prefs.themeAuto && prefs.themeAuto !== "off";
+    $$("#swatches .swatch").forEach(function (s) {
+      var st = s.getAttribute("data-t");
+      var on = (st === "auto") ? autoOn : (!autoOn && st === prefs.theme);
+      s.classList.toggle("is-active", on); s.setAttribute("aria-pressed", String(on));
+    });
+    var tv = $("#theme-val"); if (tv) tv.textContent = autoOn ? ("otomatis · " + prefs.theme) : prefs.theme;
     $$("#seg-mode button").forEach(function (b) { var on = b.getAttribute("data-m") === prefs.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     $$("#seg-font button").forEach(function (b) { var on = b.getAttribute("data-f") === prefs.font; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     var btnMode = $("#btn-mode"); if (btnMode) btnMode.setAttribute("aria-pressed", String(prefs.mode === "paged"));
@@ -134,8 +211,87 @@
     var asSpeedGroup = $("#as-speed-group"); if (asSpeedGroup) asSpeedGroup.hidden = !prefs.autoScroll;
     var rngAsSpeed = $("#rng-as-speed"); if (rngAsSpeed) rngAsSpeed.value = prefs.autoScrollSpeed;
     var asSpeedVal = $("#as-speed-val"); if (asSpeedVal) asSpeedVal.textContent = prefs.autoScrollSpeed.toFixed(1) + "×";
+    // resolve theme auto (system / time) — applied but not persisted as the resolved value
+    if (autoOn) { prefs.theme = resolveTheme(); document.documentElement.setAttribute("data-theme", prefs.theme); }
+    // dyslexia mode
+    document.body.classList.toggle("dys", !!prefs.dys);
+    var dysV = $("#dys-val"); if (dysV) dysV.textContent = prefs.dys ? "aktif" : "mati";
+    $$("#seg-dys button").forEach(function (b) { var on = (b.getAttribute("data-d") === "on") === prefs.dys; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    // paragraph align + indent
+    document.documentElement.style.setProperty("--reader-align", prefs.align === "justify" ? "justify" : "left");
+    document.body.classList.toggle("indent-on", !!prefs.indent);
+    var alV = $("#align-val"); if (alV) alV.textContent = prefs.align === "justify" ? "rata" : "kiri";
+    var inV = $("#indent-val"); if (inV) inV.textContent = prefs.indent ? "aktif" : "mati";
+    $$("#seg-align button").forEach(function (b) { var on = b.getAttribute("data-al") === prefs.align; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    $$("#seg-indent button").forEach(function (b) { var on = (b.getAttribute("data-i") === "on") === prefs.indent; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    // line focus
+    var foV = $("#focus-val"); if (foV) foV.textContent = prefs.focus === "band" ? "pita" : prefs.focus === "ruler" ? "penggaris" : "mati";
+    $$("#seg-focus button").forEach(function (b) { var on = b.getAttribute("data-f") === prefs.focus; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    applyFocus();
+    // bionic
+    var bioV = $("#bionic-val"); if (bioV) bioV.textContent = prefs.bionic ? "aktif" : "mati";
+    $$("#seg-bionic button").forEach(function (b) { var on = (b.getAttribute("data-b") === "on") === prefs.bionic; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    // ambient soundscapes
+    var amV = $("#ambient-val"); if (amV) amV.textContent = prefs.ambient === "off" ? "mati" : prefs.ambient;
+    $$("#seg-ambient button").forEach(function (b) { var on = b.getAttribute("data-a") === prefs.ambient; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    var rngAmVol = $("#rng-ambient-vol"); if (rngAmVol) rngAmVol.value = prefs.ambientVol;
+    var amVolV = $("#ambient-vol-val"); if (amVolV) amVolV.textContent = Math.round(prefs.ambientVol * 100) + "%";
+    updateFlame();
+  }
+  function resolveTheme() {
+    if (prefs.themeAuto === "system") {
+      try {
+        var mq = window.matchMedia("(prefers-color-scheme: dark)");
+        return mq && mq.matches ? "ink" : "paper";
+      } catch (e) { return prefs.theme; }
+    }
+    if (prefs.themeAuto === "time") {
+      var h = new Date().getHours();
+      return (h >= 18 || h < 6) ? "dusk" : "paper";
+    }
+    return prefs.theme;
   }
   function savePrefs() { save(KEYS.prefs, prefs); }
+
+  /* ---------------- line focus (Fokus Garis) ---------------- */
+  function applyFocus() {
+    var scroller = $("#reader-scroller");
+    if (!scroller) return;
+    var top = $("#lf-top"), bottom = $("#lf-bottom"), ruler = $("#lf-ruler");
+    var enabled = prefs.focus !== "off" && state.mode === "scroll" && state.view === "reader";
+    var band = enabled && prefs.focus === "band";
+    var rul = enabled && prefs.focus === "ruler";
+    scroller.classList.toggle("lf-band", band);
+    scroller.classList.toggle("lf-ruler-on", rul);
+    if (top) top.hidden = !band;
+    if (bottom) bottom.hidden = !band;
+    if (ruler) ruler.hidden = !rul;
+    if (enabled) markFocusParagraphs();
+    else clearFocusDim();
+  }
+  function clearFocusDim() {
+    $$("#prose p[data-pi]").forEach(function (p) { p.classList.remove("lf-dim"); });
+  }
+  function markFocusParagraphs() {
+    var stage = $(".reader-stage");
+    var prose = $("#prose");
+    if (!stage || !prose) return;
+    var vh = stage.clientHeight;
+    if (!vh) return;
+    var center = vh / 2;
+    var half = prefs.focus === "band" ? vh * 0.175 : 22;
+    $$("#prose p[data-pi]").forEach(function (p) {
+      var r = p.getBoundingClientRect();
+      var pc = r.top + r.height / 2;
+      p.classList.toggle("lf-dim", Math.abs(pc - center) > half);
+    });
+  }
+  var lfTimer = 0;
+  function lfScrollMark() {
+    if (state.mode !== "scroll" || prefs.focus === "off") return;
+    clearTimeout(lfTimer);
+    lfTimer = setTimeout(markFocusParagraphs, 100);
+  }
 
   /* ============================================================
      ROUTING
@@ -331,6 +487,23 @@
     head.innerHTML =
       '<div class="chapter-kicker">VOL ' + String(book.num).padStart(2, "0") + " · BAB " + (c + 1) + " · ≈ " + readMin + " mnt</div>" +
       '<h1 class="chapter-title">' + esc(ch.title || "") + "</h1>";
+    // recap card — first chapter of a volume with meta; open only until first dismissed
+    if (c === 0 && META[vid]) {
+      var meta = META[vid] || {};
+      if (meta.recap || meta.arc) {
+        var recap = document.createElement("details");
+        recap.className = "recap-card";
+        recap.setAttribute("data-recap", "");
+        recap.open = prefs.recapSeen[vid] !== true;
+        recap.innerHTML =
+          '<summary>Sebelumnya di Volume ' + book.num + " \u2014 <b>" + esc(meta.arc || "") + '</b> <span class="recap-chev">\u25BE</span></summary>' +
+          "<p>" + esc(meta.recap || "") + "</p>";
+        recap.addEventListener("toggle", function () {
+          if (!recap.open) { prefs.recapSeen[vid] = true; savePrefs(); }
+        });
+        prose.appendChild(recap);
+      }
+    }
     prose.appendChild(head);
 
     var pi = 0;
@@ -395,6 +568,26 @@
     }
     prose.appendChild(foot);
 
+    // volume finale — last chapter of the volume
+    if (c === maxChap) {
+      var vfin = document.createElement("footer");
+      vfin.className = "vol-finale";
+      var vCount = chaptersOf(vid).length;
+      var vWords = 0;
+      chaptersOf(vid).forEach(function (ch2) { vWords += chapterWords(ch2); });
+      var bookIdx = -1;
+      for (var bi = 0; bi < BOOKS.length; bi++) if (BOOKS[bi].id === vid) { bookIdx = bi; break; }
+      var nextBook = (bookIdx >= 0 && bookIdx < BOOKS.length - 1) ? BOOKS[bookIdx + 1] : null;
+      vfin.innerHTML =
+        '<div class="vol-finale-check">\u2713 Volume ' + book.num + " selesai</div>" +
+        '<div class="vol-finale-stats">' + vCount + " bab \u00b7 " + vWords.toLocaleString("id") + " kata</div>" +
+        '<div class="vol-finale-btns">' +
+          '<button class="btn ghost" data-action="back-lib">Ke perpustakaan</button>' +
+          (nextBook ? '<button class="btn" data-action="next-volume" data-vid="' + nextBook.id + '">Volume ' + nextBook.num + " \u2192</button>" : "") +
+        "</div>";
+      prose.appendChild(vfin);
+    }
+
     // apply highlights (offset-based, works across inline tags)
     applyHighlightsToProse();
 
@@ -454,6 +647,8 @@
     // auto-scroll: stop in paged, start in scroll if enabled
     if (state.mode === "paged") stopAutoScroll();
     else if (prefs.autoScroll && state.view === "reader") startAutoScroll();
+    // line focus only applies in scroll mode
+    applyFocus();
   }
 
   function recomputePaged() {
@@ -500,6 +695,7 @@
       return;
     }
     if (p === state.page) return;
+    var prev = state.page;
     state.page = p;
     $("#prose").style.setProperty("--page", state.page);
     updatePageHud();
@@ -507,6 +703,11 @@
     // silent hash sync (no route() — avoids a full re-render on every page turn)
     setHash("r/" + state.vid + "/" + state.c + "/p" + state.page, true);
     updateProgress();
+    // page-turn cue (uses CSS individual `translate` property — composes with the
+    // paged `transform`, so the column offset is preserved)
+    if (!reduceMotion && window.anime) {
+      try { anime({ targets: "#prose", translateX: [p > prev ? 14 : -14, 0], opacity: [0.5, 1], duration: 160, easing: "easeOutQuad" }); } catch (e) {}
+    }
   }
 
   function restorePage() {
@@ -583,6 +784,47 @@
     $$("#toc-list .toc-item").forEach(function (it) {
       it.classList.toggle("is-current", parseInt(it.getAttribute("data-c"), 10) === state.c);
     });
+  }
+  function renderTocChars() {
+    var box = $("#toc-chars");
+    if (!box) return;
+    var meta = META[state.vid];
+    var hasChars = meta && meta.chars && meta.chars.length;
+    var hasTerms = meta && meta.terms && meta.terms.length;
+    if (!meta || (!hasChars && !hasTerms)) {
+      box.innerHTML = '<div class="search-empty">Belum ada data karakter untuk volume ini.</div>';
+      return;
+    }
+    var html = "";
+    if (hasChars) {
+      html += '<div class="chars-sect">Karakter</div>';
+      meta.chars.forEach(function (ch, i) {
+        html += '<div class="char-card" data-action="char-toggle" data-i="' + i + '" role="button" tabindex="0" aria-expanded="false">' +
+          '<div class="char-name">' + esc(ch.n || "") + (ch.aka ? ' <span class="char-aka">\u00b7 ' + esc(ch.aka) + "</span>" : "") + "</div>" +
+          '<span class="char-desc" hidden>' + esc(ch.desc || "") + "</span>" +
+          "</div>";
+      });
+    }
+    if (hasTerms) {
+      html += '<div class="chars-sect">Istilah</div>';
+      meta.terms.forEach(function (tm, i) {
+        html += '<div class="char-card term-card" data-action="term-toggle" data-i="' + i + '" role="button" tabindex="0" aria-expanded="false">' +
+          '<div class="char-name">' + esc(tm.t || "") + "</div>" +
+          '<span class="char-desc" hidden>' + esc(tm.desc || "") + "</span>" +
+          "</div>";
+      });
+    }
+    box.innerHTML = html;
+  }
+  function setTocTab(tab) {
+    state.tocTab = tab;
+    $$("#toc-tabs button").forEach(function (b) {
+      var on = b.getAttribute("data-tab") === tab;
+      b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on));
+    });
+    var tl = $("#toc-list"), tc = $("#toc-chars");
+    if (tl) tl.hidden = tab !== "toc";
+    if (tc) { tc.hidden = tab !== "chars"; if (tab === "chars") renderTocChars(); }
   }
 
   /* ---------------- search ---------------- */
@@ -668,12 +910,26 @@
     });
     return best;
   }
+  function dueReviews() {
+    var now = Date.now();
+    var out = [];
+    for (var i = 0; i < hls.length; i++) {
+      var h = hls[i];
+      if (typeof h.reviewDue === "number" && h.reviewDue <= now) out.push(i);
+    }
+    return out;
+  }
+  function updateMarksBadge() {
+    var badge = $("#marks-badge");
+    if (!badge) return;
+    var n = dueReviews().length;
+    badge.hidden = n === 0;
+    badge.textContent = n > 9 ? "9+" : String(n);
+  }
   function renderMarks() {
     var box = $("#marks-list");
-    if (!bms.length && !hls.length) {
-      box.innerHTML = '<div class="search-empty">Belum ada penanda. Tekan tombol bintang saat membaca untuk menandai paragraf, atau pilih teks untuk menyortot kutipan.</div>';
-      return;
-    }
+    updateMarksBadge();
+    var due = dueReviews();
     box.innerHTML = "";
     var sectHead = function (label) {
       var h = document.createElement("div");
@@ -682,6 +938,40 @@
       h.textContent = label;
       box.appendChild(h);
     };
+    // daily review (Readwise-style) — always shown at top
+    sectHead("Ulas Harian");
+    if (due.length) {
+      due.forEach(function (idx) {
+        var h = hls[idx];
+        var book = bookById(h.vid);
+        var d = document.createElement("div");
+        d.className = "mark-item review-item";
+        d.innerHTML =
+          '<div style="flex:1;min-width:0">' +
+          '<div class="mi-t">' + esc(h.text) + "</div>" +
+          '<div class="mi-meta">' + esc(book ? book.title : h.vid) + " \u00b7 " + esc((book && book.chapters[h.c]) ? book.chapters[h.c].title : "Bab " + (h.c + 1)) + "</div>" +
+          '<div class="review-btns">' +
+            '<button class="btn" data-action="review-ok" data-hi="' + idx + '">Ingat</button>' +
+            '<button class="btn ghost" data-action="review-lupa" data-hi="' + idx + '">Lupa</button>' +
+          "</div></div>";
+        box.appendChild(d);
+      });
+    } else {
+      var e = document.createElement("div");
+      e.className = "search-empty";
+      e.setAttribute("style", "margin:4px 4px 8px");
+      e.textContent = "Tidak ada ulasan hari ini.";
+      box.appendChild(e);
+    }
+    // onboarding hint when there are no bookmarks or highlights yet
+    if (!bms.length && !hls.length) {
+      var onb = document.createElement("div");
+      onb.className = "search-empty";
+      onb.setAttribute("style", "margin:8px 4px");
+      onb.textContent = "Belum ada penanda. Tekan tombol bintang saat membaca untuk menandai paragraf, atau pilih teks untuk menyortot kutipan.";
+      box.appendChild(onb);
+      return;
+    }
     if (bms.length) {
       sectHead("Penanda");
       bms.slice().reverse().forEach(function (m, i) {
@@ -755,7 +1045,7 @@
       start = preRange.toString().length;
       end = start + range.toString().length;
     } catch (e) { start = 0; end = txt.length; }
-    hls.push({ vid: state.vid, c: state.c, pi: pi, text: txt, start: start, end: end, ts: Date.now() });
+    hls.push({ vid: state.vid, c: state.c, pi: pi, text: txt, start: start, end: end, ts: Date.now(), reviewDue: Date.now() + 24 * 3600 * 1000, interval: 1 });
     save(KEYS.hls, hls);
     sel.removeAllRanges();
     toast("Disorot");
@@ -842,6 +1132,14 @@
       var k = last14[i];
       heat += '<i class="' + (k && stats.days[k] ? "on" : "") + '" title="' + esc(k || "") + '"></i>';
     }
+    var t = todayKey();
+    var todayCount = 0;
+    for (var kk in stats.chapters) if (stats.chapters[kk] === t) todayCount++;
+    var goal = prefs.goalBab || 0;
+    var pct = goal > 0 ? Math.min(100, Math.round((todayCount / goal) * 100)) : 0;
+    var ringStyle = goal > 0
+      ? "background:conic-gradient(var(--accent) " + pct + "%, var(--line-strong) 0)"
+      : "background:var(--line-strong)";
     box.innerHTML =
       '<div class="stat-grid">' +
       '<div class="stat-cell"><div class="v">' + stats.totalWords.toLocaleString("id") + "</div><div class=\"k\">Kata dibaca</div></div>" +
@@ -849,8 +1147,39 @@
       '<div class="stat-cell"><div class="v">' + todayW.toLocaleString("id") + "</div><div class=\"k\">Hari ini</div></div>" +
       '<div class="stat-cell"><div class="v">' + Object.keys(stats.chapters).length + "</div><div class=\"k\">Bab dibuka</div></div>" +
       "</div>" +
+      '<div class="goal-section">' +
+        '<div class="goal-ring" id="goal-ring" style="' + ringStyle + '"><span>' + (goal > 0 ? pct + "%" : "\u2014") + "</span></div>" +
+        '<div class="goal-meta">' +
+          '<div class="goal-today">' + todayCount + " / " + (goal > 0 ? goal : "\u2014") + " bab hari ini</div>" +
+          '<label class="goal-label" for="rng-goal">Target bab per hari</label>' +
+          '<input id="rng-goal" type="number" min="0" max="50" value="' + goal + '" aria-label="Target bab per hari" />' +
+        "</div>" +
+      "</div>" +
       '<div style="padding:0 16px 16px"><div class="pop-label"><span>14 hari terakhir</span></div><div class="stat-heat">' + heat + "</div></div>" +
       '<div style="padding:0 16px;font-family:var(--font-mono);font-size:11px;color:var(--ink-faint)">Data tersimpan di perangkat ini.</div>';
+    var rngGoal = $("#rng-goal");
+    if (rngGoal) rngGoal.addEventListener("input", function () {
+      var v = parseInt(this.value, 10);
+      if (isNaN(v) || v < 0) v = 0;
+      if (v > 50) v = 50;
+      prefs.goalBab = v;
+      savePrefs();
+      updateGoalRing();
+    });
+  }
+  function updateGoalRing() {
+    var ring = $("#goal-ring");
+    if (!ring) return;
+    var t = todayKey();
+    var todayCount = 0;
+    for (var k in stats.chapters) if (stats.chapters[k] === t) todayCount++;
+    var goal = prefs.goalBab || 0;
+    var pct = goal > 0 ? Math.min(100, Math.round((todayCount / goal) * 100)) : 0;
+    ring.style.background = goal > 0 ? "conic-gradient(var(--accent) " + pct + "%, var(--line-strong) 0)" : "var(--line-strong)";
+    var span = ring.querySelector("span");
+    if (span) span.textContent = goal > 0 ? pct + "%" : "\u2014";
+    var meta = $(".goal-today");
+    if (meta) meta.textContent = todayCount + " / " + (goal > 0 ? goal : "\u2014") + " bab hari ini";
   }
 
   /* ============================================================
@@ -933,7 +1262,7 @@
       case "prev-chap": goChapter(state.c - 1); break;
       case "next-chap": goChapter(state.c + 1); break;
       case "next-chap-end": goChapter(state.c + 1); break;
-      case "open-toc": renderTOC(); openSheet("sheet-toc"); break;
+      case "open-toc": renderTOC(); setTocTab(state.tocTab || "toc"); openSheet("sheet-toc"); break;
       case "open-search": openSheet("sheet-search"); setTimeout(function () { $("#search-input").focus(); }, 240); runSearch($("#search-input").value); break;
       case "open-marks": renderMarks(); openSheet("sheet-marks"); break;
       case "open-stats": renderStats(); openSheet("sheet-stats"); break;
@@ -1000,7 +1329,14 @@
         break;
       }
       case "toggle-settings": toggleSettings(el); break;
-      case "set-theme": { prefs.theme = el.getAttribute("data-t"); applyPrefs(); savePrefs(); toast("Tema " + prefs.theme); break; }
+      case "set-theme": {
+        var tt = el.getAttribute("data-t");
+        if (tt === "auto") { prefs.themeAuto = "system"; }
+        else { prefs.themeAuto = "off"; prefs.theme = tt; }
+        applyPrefs(); savePrefs();
+        toast(prefs.themeAuto !== "off" ? "Tema otomatis" : "Tema " + prefs.theme);
+        break;
+      }
       case "set-mode": { prefs.mode = el.getAttribute("data-m"); state.mode = prefs.mode; applyPrefs(); savePrefs(); applyMode(); if (prefs.mode === "scroll") setHash("r/" + state.vid + "/" + state.c, true); break; }
       case "set-font": { prefs.font = el.getAttribute("data-f"); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); break; }
       case "set-auto-scroll": {
@@ -1036,6 +1372,85 @@
       case "lb-reset": if (window.MT_LB) MT_LB.reset(); break;
       case "err-reload": location.reload(); break;
       case "err-go-lib": closeErrorGuard(); navigate("lib"); break;
+      /* ---- feature 1: line focus ---- */
+      case "set-focus": {
+        prefs.focus = el.getAttribute("data-f");
+        applyPrefs(); savePrefs();
+        toast("Fokus " + (prefs.focus === "band" ? "pita" : prefs.focus === "ruler" ? "penggaris" : "mati"));
+        break;
+      }
+      /* ---- feature 2: bionic reading ---- */
+      case "toggle-bionic": {
+        prefs.bionic = (el.getAttribute("data-b") === "on");
+        applyPrefs(); savePrefs(); renderReader();
+        toast(prefs.bionic ? "Baca bionik aktif" : "Baca bionik mati");
+        break;
+      }
+      /* ---- feature 3: dyslexia mode ---- */
+      case "toggle-dys": {
+        prefs.dys = (el.getAttribute("data-d") === "on");
+        applyPrefs(); savePrefs();
+        toast(prefs.dys ? "Mode disleksia aktif" : "Mode disleksia mati");
+        break;
+      }
+      /* ---- feature 6: ambient soundscapes ---- */
+      case "set-ambient": {
+        prefs.ambient = el.getAttribute("data-a");
+        applyPrefs(); savePrefs();
+        if (window.MT_AMBIENT) {
+          if (prefs.ambient === "off") MT_AMBIENT.stop();
+          else MT_AMBIENT.start(prefs.ambient);
+        }
+        toast(prefs.ambient === "off" ? "Suasana mati" : "Suasana " + prefs.ambient);
+        break;
+      }
+      /* ---- feature 12: justify + indent ---- */
+      case "set-align": {
+        prefs.align = el.getAttribute("data-al");
+        applyPrefs(); savePrefs();
+        break;
+      }
+      case "toggle-indent": {
+        prefs.indent = (el.getAttribute("data-i") === "on");
+        applyPrefs(); savePrefs();
+        break;
+      }
+      /* ---- feature 7: daily review ---- */
+      case "review-ok": {
+        var rid = parseInt(el.getAttribute("data-hi"), 10);
+        if (!isNaN(rid) && hls[rid]) {
+          hls[rid].interval = Math.min((hls[rid].interval || 1) * 2, 60);
+          hls[rid].reviewDue = Date.now() + hls[rid].interval * 86400000;
+          save(KEYS.hls, hls); renderMarks(); toast("Dijadwalkan ulang");
+        }
+        break;
+      }
+      case "review-lupa": {
+        var lid = parseInt(el.getAttribute("data-hi"), 10);
+        if (!isNaN(lid) && hls[lid]) {
+          hls[lid].interval = 1;
+          hls[lid].reviewDue = Date.now() + 86400000;
+          save(KEYS.hls, hls); renderMarks(); toast("Akan diulas besok");
+        }
+        break;
+      }
+      /* ---- feature 14: TOC chars tab + glossary ---- */
+      case "toc-tab": setTocTab(el.getAttribute("data-tab")); break;
+      case "char-toggle":
+      case "term-toggle": {
+        var desc = el.querySelector(".char-desc");
+        if (desc) {
+          desc.hidden = !desc.hidden;
+          el.setAttribute("aria-expanded", desc.hidden ? "false" : "true");
+        }
+        break;
+      }
+      /* ---- feature 10: volume finale ---- */
+      case "next-volume": {
+        var nv = el.getAttribute("data-vid");
+        if (nv && bookById(nv)) navigate("r/" + nv + "/0");
+        break;
+      }
       default: return;
     }
   }
@@ -1143,6 +1558,7 @@
   $("#reader-scroller").addEventListener("scroll", function () {
     if (state.mode !== "scroll") return;
     updateProgress();
+    lfScrollMark();
     var scroller = this;
     clearTimeout(scrollSaveTimer);
     scrollSaveTimer = setTimeout(function () {
@@ -1167,6 +1583,12 @@
   $("#rng-col").addEventListener("input", function () { prefs.col = parseInt(this.value, 10); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
   var rngAsSpeed = $("#rng-as-speed");
   if (rngAsSpeed) rngAsSpeed.addEventListener("input", function () { prefs.autoScrollSpeed = parseFloat(this.value); applyPrefs(); savePrefs(); });
+  var rngAmbVol = $("#rng-ambient-vol");
+  if (rngAmbVol) rngAmbVol.addEventListener("input", function () {
+    prefs.ambientVol = parseFloat(this.value);
+    applyPrefs(); savePrefs();
+    if (window.MT_AMBIENT) MT_AMBIENT.setVol(prefs.ambientVol);
+  });
   $("#search-input").addEventListener("input", function () { runSearch(this.value); });
 
   /* ---------------- close settings on outside click (capture click) ---------------- */
@@ -1182,6 +1604,19 @@
   var ro = new ResizeObserver(function () { if (state.mode === "paged") recomputePaged(); });
   var stage = $(".reader-stage"); if (stage) ro.observe(stage);
   window.addEventListener("resize", function () { if (state.mode === "paged") recomputePaged(); updateProgress(); });
+
+  /* ---------------- theme auto (system / time) ---------------- */
+  (function () {
+    try {
+      var mq = window.matchMedia("(prefers-color-scheme: dark)");
+      if (mq && mq.addEventListener) mq.addEventListener("change", function () { if (prefs.themeAuto === "system") { prefs.theme = resolveTheme(); document.documentElement.setAttribute("data-theme", prefs.theme); } });
+      else if (mq && mq.addListener) mq.addListener(function () { if (prefs.themeAuto === "system") { prefs.theme = resolveTheme(); document.documentElement.setAttribute("data-theme", prefs.theme); } });
+    } catch (e) {}
+    // time-based: re-evaluate every 10 minutes
+    setInterval(function () {
+      if (prefs.themeAuto === "time") { var nt = resolveTheme(); if (nt !== prefs.theme) { prefs.theme = nt; document.documentElement.setAttribute("data-theme", prefs.theme); } }
+    }, 600000);
+  })();
 
   /* ---------------- error guard ---------------- */
   var errGuard = $("#error-guard"), errCode = $("#error-code");
@@ -1265,6 +1700,7 @@
   window.MT_App = {
     state: state, prefs: prefs, prog: prog, bms: bms, hls: hls, stats: stats,
     renderLib: renderLib, renderReader: renderReader, navigate: navigate, toast: toast,
+    openSheet: openSheet, closeSheets: closeSheets, applyPrefs: applyPrefs, savePrefs: savePrefs,
     // advance to the next chapter for TTS auto-continue; returns false at the last chapter
     nextForTTS: function () {
       if (state.view !== "reader") return false;

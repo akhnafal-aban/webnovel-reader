@@ -24,7 +24,7 @@
   var hlAPI = !!(window.Highlight && window.CSS && CSS.highlights);
   if (hlAPI) {
     var __hlStyle = document.createElement("style");
-    __hlStyle.textContent = "::highlight(tts-sent){background-color:var(--accent-soft);color:inherit;}";
+    __hlStyle.textContent = "::highlight(tts-sent){background-color:var(--accent-soft);color:inherit;} ::highlight(tts-word){background-color:var(--accent);color:var(--on-accent);border-radius:2px;}";
     document.head.appendChild(__hlStyle);
   }
   function rangeFromOffsets(root, start, end) {
@@ -87,7 +87,83 @@
       else n.parentNode && n.parentNode.removeChild(n);
     });
     if (hlAPI) { try { CSS.highlights.delete("tts-sent"); } catch (e) {} }
+    clearWordHighlight();
+    stopFallback();
   }
+
+  /* ---------------- word-level (karaoke) highlight ---------------- */
+  var wState = { words: [], idx: 0, timer: null, startTimer: null, boundaryFired: false };
+  function splitWords(text) {
+    var words = [];
+    var re = /\S+/g, m;
+    while ((m = re.exec(text))) words.push({ start: m.index, end: m.index + m[0].length, len: m[0].length });
+    return words;
+  }
+  function clearWordHighlight() {
+    if (hlAPI) { try { CSS.highlights.delete("tts-word"); } catch (e) {} }
+  }
+  function stopFallback() {
+    if (wState.startTimer) { clearTimeout(wState.startTimer); wState.startTimer = null; }
+    if (wState.timer) { clearTimeout(wState.timer); wState.timer = null; }
+  }
+  function highlightWord(s, w) {
+    if (!hlAPI || !s || !s.el || !w) return;
+    try { CSS.highlights.set("tts-word", new Highlight(rangeFromOffsets(s.el, s.start + w.start, s.start + w.end))); } catch (e) {}
+  }
+  function advanceFallback(s) {
+    if (wState.idx >= wState.words.length) { stopFallback(); return; }
+    var w = wState.words[wState.idx];
+    highlightWord(s, w);
+    wState.idx++;
+    var base = 150 + 40 * (w ? w.len : 1);
+    if (base > 400) base = 400;
+    var delay = base / Math.max(0.5, state.rate || 1);
+    wState.timer = setTimeout(function () { advanceFallback(s); }, delay);
+  }
+  function startFallback(s) {
+    stopFallback();
+    wState.idx = 0;
+    wState.startTimer = setTimeout(function () {
+      if (wState.boundaryFired) return;
+      advanceFallback(s);
+    }, 600);
+  }
+
+  /* ---------------- sleep timer ---------------- */
+  var sleepSelect = document.getElementById("tts-sleep");
+  var sleepLabel = document.getElementById("tts-sleep-label");
+  var sleepTimer = null, sleepRemaining = 0;
+  function fmtSleep(secs) {
+    var m = Math.floor(secs / 60), s = secs % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function clearSleep() {
+    if (sleepTimer) { clearInterval(sleepTimer); sleepTimer = null; }
+    sleepRemaining = 0;
+    if (sleepLabel) sleepLabel.textContent = "";
+    if (sleepSelect) sleepSelect.value = "0";
+  }
+  function startSleep(minutes) {
+    clearSleep();
+    if (!minutes || minutes <= 0) return;
+    sleepRemaining = minutes * 60;
+    if (sleepLabel) sleepLabel.textContent = fmtSleep(sleepRemaining);
+    sleepTimer = setInterval(function () {
+      sleepRemaining--;
+      if (sleepRemaining <= 0) {
+        clearSleep();
+        try { if (synth) synth.cancel(); } catch (e) {}
+        toast("Timer berakhir");
+        close();
+      } else if (sleepLabel) {
+        sleepLabel.textContent = fmtSleep(sleepRemaining);
+      }
+    }, 1000);
+  }
+  if (sleepSelect) sleepSelect.addEventListener("change", function () {
+    var v = parseInt(sleepSelect.value, 10) || 0;
+    if (v > 0) startSleep(v); else clearSleep();
+  });
 
   function splitSentences(text) {
     // split on . ! ? … and curly quotes endings, keep delimiters
@@ -131,6 +207,11 @@
     s.el.classList.add("tts-active");
     applySentenceHighlight(s);
     nowEl.textContent = s.text;
+    // word-level (karaoke): build word offsets and arm the fallback timer
+    wState.words = splitWords(s.text);
+    wState.idx = 0;
+    wState.boundaryFired = false;
+    startFallback(s);
     if (window.MT_App && MT_App.state.mode === "paged" && MT_App.ttsShowParagraph) {
       MT_App.ttsShowParagraph(s.el); // bring the sentence's page into view in paged mode
     } else {
@@ -138,17 +219,29 @@
     }
 
     u.onboundary = function (e) {
-      if (e.name === "sentence" || e.charLength) {
+      if (e.name === "word" && typeof e.charIndex === "number") {
+        if (!wState.boundaryFired) { wState.boundaryFired = true; stopFallback(); }
+        if (hlAPI) {
+          var wStart = s.start + e.charIndex;
+          var wLen = e.charLength || 0;
+          var wEnd = wLen > 0 ? wStart + wLen : wStart;
+          try { CSS.highlights.set("tts-word", new Highlight(rangeFromOffsets(s.el, wStart, wEnd))); } catch (er) {}
+        }
+      } else if (e.name === "sentence") {
         nowEl.textContent = s.text;
       }
     };
     u.onend = function () {
       s.el.classList.remove("tts-active");
+      clearWordHighlight();
+      stopFallback();
       state.idx = idx + 1;
       if (state.playing) speakFrom(state.idx);
     };
     u.onerror = function () {
       s.el.classList.remove("tts-active");
+      clearWordHighlight();
+      stopFallback();
       state.playing = false; updateIco();
     };
     try { synth.speak(u); } catch (e) { state.playing = false; updateIco(); }
@@ -214,6 +307,7 @@
     state.open = false;
     panel.classList.remove("is-open");
     panel.setAttribute("aria-hidden", "true");
+    clearSleep();
     stop();
   }
 

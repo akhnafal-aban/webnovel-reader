@@ -6,18 +6,18 @@
   <meta name="color-scheme" content="dark light" />
   <meta name="description" content="Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline." />
   <title>MT Reader — Pembaca Novel</title>
-  <link rel="manifest" href="manifest.webmanifest?v=14" />
-  <link rel="icon" href="img/v15/cover/cover.jpg?v=14" />
-  <link rel="stylesheet" href="assets/tokens.css?v=14" />
-  <link rel="stylesheet" href="assets/app.css?v=14" />
+  <link rel="manifest" href="manifest.webmanifest?v=15" />
+  <link rel="icon" href="img/v15/cover/cover.jpg?v=15" />
+  <link rel="stylesheet" href="assets/tokens.css?v=15" />
+  <link rel="stylesheet" href="assets/app.css?v=15" />
 <script>
 // Unregister legacy SW (assets/sw.js scope /assets/) sebelum app load
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
   navigator.serviceWorker.getRegistrations().then(function(regs) {
     regs.forEach(function(r) {
       try { if (/\/assets\/$/.test(new URL(r.scope).pathname)) r.unregister(); } catch(e) {}
     });
-  });
+  }).catch(function() {});
 }
 </script>
 </head>
@@ -41,9 +41,11 @@ if ("serviceWorker" in navigator) {
         </button>
         <button class="iconbtn" data-action="open-marks" aria-label="Penanda & sorotan" title="Penanda">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <i class="badge" id="marks-badge" aria-hidden="true" hidden></i>
         </button>
         <button class="iconbtn" data-action="open-stats" aria-label="Statistik membaca" title="Statistik">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><rect x="5" y="10" width="3" height="7"/><rect x="11" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>
+          <i class="flame" id="streak-flame" aria-hidden="true" hidden><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 1 1 2 2 2 1-2 1-5 1-9z"/></svg></i>
         </button>
       </div>
     </header>
@@ -120,6 +122,9 @@ if ("serviceWorker" in navigator) {
             <span class="pg-cur" id="pg-cur">1</span><span>/</span><span id="pg-total">1</span>
             <span class="pg-bar"><i id="pg-bar-fill"></i></span>
           </div>
+          <div id="lf-top" class="lf-overlay lf-top" aria-hidden="true" hidden></div>
+          <div id="lf-bottom" class="lf-overlay lf-bottom" aria-hidden="true" hidden></div>
+          <div id="lf-ruler" class="lf-overlay lf-ruler" aria-hidden="true" hidden></div>
         </div>
       </section>
     </main>
@@ -130,10 +135,16 @@ if ("serviceWorker" in navigator) {
     <!-- ===================== SHEET: TOC ===================== -->
     <aside id="sheet-toc" class="sheet" role="dialog" aria-modal="true" aria-label="Daftar isi" aria-hidden="true">
       <div class="sheet-head">
-        <h2>Daftar Isi</h2>
+        <div class="seg sheet-tabs" id="toc-tabs">
+          <button data-action="toc-tab" data-tab="toc" class="is-active" aria-pressed="true">Daftar Isi</button>
+          <button data-action="toc-tab" data-tab="chars" aria-pressed="false">Karakter</button>
+        </div>
         <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
-      <div class="sheet-body"><ol id="toc-list" class="toc-list"></ol></div>
+      <div class="sheet-body">
+        <ol id="toc-list" class="toc-list"></ol>
+        <div id="toc-chars" class="toc-chars" hidden></div>
+      </div>
     </aside>
 
     <!-- ===================== SHEET: SEARCH ===================== -->
@@ -176,6 +187,7 @@ if ("serviceWorker" in navigator) {
           <button class="swatch" data-action="set-theme" data-t="sepia"  aria-label="Sepia"></button>
           <button class="swatch" data-action="set-theme" data-t="dusk"   aria-label="Dusk"></button>
           <button class="swatch" data-action="set-theme" data-t="moss"   aria-label="Moss"></button>
+          <button class="swatch" data-action="set-theme" data-t="auto"   aria-label="Otomatis"></button>
         </div>
       </div>
       <div class="pop-group">
@@ -215,6 +227,52 @@ if ("serviceWorker" in navigator) {
         <div class="pop-label"><span>Kecepatan gulir</span><span class="val" id="as-speed-val">1.0×</span></div>
         <input class="range" id="rng-as-speed" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="Kecepatan gulir otomatis" />
       </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Fokus garis</span><span class="val" id="focus-val">mati</span></div>
+        <div class="seg" id="seg-focus">
+          <button data-action="set-focus" data-f="off">Mati</button>
+          <button data-action="set-focus" data-f="band">Pita</button>
+          <button data-action="set-focus" data-f="ruler">Penggaris</button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Baca bionik</span><span class="val" id="bionic-val">mati</span></div>
+        <div class="seg" id="seg-bionic">
+          <button data-action="toggle-bionic" data-b="off">Mati</button>
+          <button data-action="toggle-bionic" data-b="on">Aktif</button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Mode disleksia</span><span class="val" id="dys-val">mati</span></div>
+        <div class="seg" id="seg-dys">
+          <button data-action="toggle-dys" data-d="off">Mati</button>
+          <button data-action="toggle-dys" data-d="on">Aktif</button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Suasana</span><span class="val" id="ambient-val">mati</span></div>
+        <div class="seg" id="seg-ambient">
+          <button data-action="set-ambient" data-a="off">Mati</button>
+          <button data-action="set-ambient" data-a="rain">Hujan</button>
+          <button data-action="set-ambient" data-a="wind">Angin</button>
+          <button data-action="set-ambient" data-a="fire">Api</button>
+          <button data-action="set-ambient" data-a="night">Malam</button>
+        </div>
+        <div class="pop-label" style="margin-top:10px"><span>Volume suasana</span><span class="val" id="ambient-vol-val">35%</span></div>
+        <input class="range" id="rng-ambient-vol" type="range" min="0" max="1" step="0.05" value="0.35" aria-label="Volume suasana" />
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Paragraf</span><span class="val" id="align-val">kiri</span></div>
+        <div class="seg" id="seg-align">
+          <button data-action="set-align" data-al="left">Kiri</button>
+          <button data-action="set-align" data-al="justify">Rata</button>
+        </div>
+        <div class="pop-label" style="margin-top:10px"><span>Inden paragraf</span><span class="val" id="indent-val">mati</span></div>
+        <div class="seg" id="seg-indent">
+          <button data-action="toggle-indent" data-i="off">Mati</button>
+          <button data-action="toggle-indent" data-i="on">Aktif</button>
+        </div>
+      </div>
     </div>
 
     <!-- ===================== TTS PANEL ===================== -->
@@ -232,6 +290,20 @@ if ("serviceWorker" in navigator) {
           <label>Kecepatan <span class="tts-rate-val" id="tts-rate-val">1.0×</span><input class="range" id="tts-rate" type="range" min="0.6" max="2" step="0.05" value="1" aria-label="Kecepatan baca" /></label>
           <label>Suara <select id="tts-voice" aria-label="Pilih suara"></select></label>
         </div>
+      </div>
+      <div class="tts-sleep-row">
+        <label class="tts-sleep-label" for="tts-sleep">Timer tidur</label>
+        <select id="tts-sleep" aria-label="Timer tidur">
+          <option value="0">Matikan</option>
+          <option value="5">5 menit</option>
+          <option value="10">10 menit</option>
+          <option value="15">15 menit</option>
+          <option value="20">20 menit</option>
+          <option value="30">30 menit</option>
+          <option value="45">45 menit</option>
+          <option value="60">60 menit</option>
+        </select>
+        <span class="tts-sleep-remain" id="tts-sleep-label" aria-live="polite"></span>
       </div>
     </div>
 
@@ -273,21 +345,25 @@ if ("serviceWorker" in navigator) {
   </div>
 
   <!-- ===================== DATA (preload, defines globals) ===================== -->
-  <script src="data/books.js?v=14"></script>
-  <script src="data/v15/chapters.js?v=14"></script>
-  <script src="data/v16/chapters.js?v=14"></script>
-  <script src="data/v17/chapters.js?v=14"></script>
-  <script src="data/v18/chapters.js?v=14"></script>
-  <script src="data/v19/chapters.js?v=14"></script>
-  <script src="data/v20/chapters.js?v=14"></script>
-  <script src="data/v21/chapters.js?v=14"></script>
-  <script src="data/v22/chapters.js?v=14"></script>
-  <script src="data/v23/chapters.js?v=14"></script>
+  <script src="data/books.js?v=15"></script>
+  <script src="data/v15/chapters.js?v=15"></script>
+  <script src="data/v16/chapters.js?v=15"></script>
+  <script src="data/v17/chapters.js?v=15"></script>
+  <script src="data/v18/chapters.js?v=15"></script>
+  <script src="data/v19/chapters.js?v=15"></script>
+  <script src="data/v20/chapters.js?v=15"></script>
+  <script src="data/v21/chapters.js?v=15"></script>
+  <script src="data/v22/chapters.js?v=15"></script>
+  <script src="data/v23/chapters.js?v=15"></script>
   <!-- vendored anime.js v4.5.0 (offline) -->
-  <script src="assets/vendor/animejs.umd.js?v=14"></script>
+  <script src="assets/vendor/animejs.umd.js?v=15"></script>
   <!-- app modules -->
-  <script src="assets/lightbox.js?v=14"></script>
-  <script src="assets/tts.js?v=14"></script>
-  <script src="assets/app.js?v=14"></script>
+  <script src="data/meta_a.js?v=15"></script>
+  <script src="data/meta_b.js?v=15"></script>
+  <script src="assets/sync.js?v=15"></script>
+  <script src="assets/lightbox.js?v=15"></script>
+  <script src="assets/tts.js?v=15"></script>
+  <script src="assets/ambient.js?v=15"></script>
+  <script src="assets/app.js?v=15"></script>
 </body>
 </html>
