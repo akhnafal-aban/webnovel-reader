@@ -287,50 +287,50 @@
   }
   function clearFocusDim() {
     $$("#prose p[data-pi]").forEach(function (p) { p.classList.remove("lf-dim"); });
-    lfCache = null;
-  }
-  var lfCache = null; // { prose, items:[{el, off}] } — rebuilt on render/invalidate
-  function lfBuildIfNeeded() {
-    var prose = $("#prose");
-    if (!prose) return false;
-    var stale = !lfCache || lfCache.prose !== prose || !lfCache.items.length || !lfCache.items[0].el.isConnected;
-    if (stale) {
-      lfCache = { prose: prose, items: $$("#prose p[data-pi]").map(function (p) {
-        return { el: p, off: p.offsetTop, h: p.offsetHeight };
-      }) };
-    }
-    return true;
   }
   function markFocusParagraphs(force) {
     var stage = $(".reader-stage");
-    var scroller = $("#reader-scroller");
-    if (!stage || !scroller) return;
+    if (!stage) return;
     var vh = stage.clientHeight;
     if (!vh) return;
-    if (!lfBuildIfNeeded()) return;
     force = force || false;
     var center = vh / 2;
     var half = prefs.focus === "band" ? vh * 0.175 : Math.max(30, vh * 0.055);
     var best = null, bestD = 1e9;
-    var items = lfCache.items;
-    var st = scroller.scrollTop;
-    for (var j = 0; j < items.length; j++) {
-      var it = items[j], p = it.el;
-      var pc = it.off + it.h / 2 - st;
-      var d = Math.abs(pc - center);
-      if (d < bestD) { bestD = d; best = p; }
-      var dim = d > half;
-      if (dim !== p.classList.contains("lf-dim")) p.classList.toggle("lf-dim", dim);
+    // live rects every pass — illustration images shift the layout as they stream
+    // in, so any cached offsets go stale mid-scroll. Read-then-write keeps it to
+    // one layout flush per pass.
+    var ps = $$("#prose p[data-pi]");
+    var cells = [];
+    for (var i = 0; i < ps.length; i++) {
+      var r = ps[i].getBoundingClientRect();
+      cells.push({ el: ps[i], pc: r.top + r.height / 2 });
     }
-    // ruler: at least the closest paragraph stays focused (it would otherwise never
-    // land inside a thin band, making the rule look broken)
-    if (prefs.focus === "ruler" && best) best.classList.remove("lf-dim");
+    for (var j = 0; j < cells.length; j++) {
+      var d = Math.abs(cells[j].pc - center);
+      if (d < bestD) { bestD = d; best = cells[j].el; }
+      var dim = d > half;
+      if (dim !== cells[j].el.classList.contains("lf-dim")) cells[j].el.classList.toggle("lf-dim", dim);
+    }
+    // never dim the nearest paragraph — keeps a visible focus anchor even when a
+    // tall illustration fills the middle of the band
+    if (best) best.classList.remove("lf-dim");
   }
   var lfRAF = 0;
   function lfScrollMark() {
     if (state.mode !== "scroll" || prefs.focus === "off") return;
     if (lfRAF) return;
     lfRAF = requestAnimationFrame(function () { lfRAF = 0; markFocusParagraphs(false); });
+  }
+
+  /* Layout shifts from streaming illustration images must re-trigger the pass.
+     Live rects make stale caches impossible; the observer only schedules a remark. */
+  if (typeof ResizeObserver !== "undefined") {
+    var lfRO = new ResizeObserver(function () {
+      if (state.mode === "scroll" && prefs.focus !== "off") lfScrollMark();
+    });
+    var lfProseBox = $("#prose");
+    if (lfProseBox) lfRO.observe(lfProseBox);
   }
 
   /* ============================================================
