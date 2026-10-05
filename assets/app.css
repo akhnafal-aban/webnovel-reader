@@ -198,16 +198,16 @@ a { color: var(--accent-ink); text-decoration: none; }
 .book-num {
   position: absolute; top: var(--sp-3); left: var(--sp-3); z-index: 2;
   font-family: var(--font-mono); font-size: 11px; font-weight: 700; letter-spacing: .1em;
-  color: var(--ink); background: var(--bg-glass); padding: 3px 8px; border-radius: var(--r-pill);
-  backdrop-filter: blur(6px); border: 1px solid var(--line);
+  color: var(--on-accent); background: var(--accent); padding: 3px 10px; border-radius: var(--r-pill);
+  box-shadow: 0 2px 8px rgba(0,0,0,.3);
 }
 .book-meta { position: relative; z-index: 1; margin-top: var(--sp-4); }
 .book-title { font-family: var(--font-novel); font-size: 18px; font-weight: 700; line-height: 1.2; }
 .book-sub { font-family: var(--font-ui); font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
 .book-progress { margin-top: var(--sp-3); display: flex; align-items: center; gap: var(--sp-2); }
-.book-progress > .bar { flex: 1; height: 3px; border-radius: 2px; background: var(--line-strong); overflow: hidden; }
+.book-progress > .bar { flex: 1; height: 3px; border-radius: 2px; background: var(--accent-soft); overflow: hidden; }
 .book-progress > .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
-.book-progress > .pct { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); }
+.book-progress > .pct { font-family: var(--font-mono); font-size: 10px; color: var(--ink-soft); }
 
 /* ---- Film-strip gallery ---- */
 .filmstrip-wrap { margin-top: var(--sp-8); }
@@ -259,9 +259,14 @@ a { color: var(--accent-ink); text-decoration: none; }
   display: flex; justify-content: center;
 }
 .reader-stage::before {
-  /* subtle vignette for cinematic frame */
+  /* subtle vignette for cinematic frame — dark themes only */
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   box-shadow: inset 0 0 120px rgba(0,0,0,.18);
+}
+[data-theme="paper"] .reader-stage::before,
+[data-theme="sepia"] .reader-stage::before,
+[data-theme="moss"] .reader-stage::before {
+  box-shadow: inset 0 0 100px rgba(120,80,30,.08);
 }
 
 /* progress ember (signature: vertical glow line) */
@@ -330,7 +335,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 
 /* bookmark/highlight affordances on paragraphs */
 .prose p { position: relative; border-radius: var(--r-xs); }
-.prose p.is-marked::after { content: "✦"; position: absolute; right: -1.4em; top: .1em; color: var(--accent); font-size: .8em; opacity: .85; }
+.prose p.is-marked::before { content: "✦"; position: absolute; left: -1.2em; top: .1em; color: var(--accent); font-size: .8em; opacity: .85; }
 .prose p mark.hl {
   background: var(--accent-soft); color: inherit; border-radius: 2px;
   padding: 0 .1em; box-shadow: inset 0 -2px 0 var(--accent);
@@ -523,6 +528,15 @@ a { color: var(--accent-ink); text-decoration: none; }
 .tts-opts { display: flex; align-items: center; gap: var(--sp-4); flex: 1; }
 .tts-opts label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); display: flex; flex-direction: column; gap: 4px; }
 .tts-opts select { min-height: var(--tap); background: var(--bg-sink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 var(--sp-2); font-size: 12px; max-width: 150px; }
+.tts-rate-val { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+
+/* TTS panel: stack to 2 rows on mobile so speed slider gets full width */
+@media (max-width: 480px) {
+  .tts-controls { flex-wrap: wrap; }
+  .tts-opts { flex-basis: 100%; flex-direction: row; align-items: center; gap: var(--sp-3); }
+  .tts-opts label { flex: 1; }
+  .tts-opts select { max-width: none; flex: 1; }
+}
 
 /* =========================================================================
    LIGHTBOX
@@ -617,7 +631,9 @@ a { color: var(--accent-ink); text-decoration: none; }
    Hide them on phones so the title stays legible and nothing overflows. ---- */
 @media (max-width: 430px) {
   .reader-tools [data-action="prev-chap"],
-  .reader-tools [data-action="next-chap"] { display: none; }
+  .reader-tools [data-action="next-chap"],
+  .reader-tools [data-action="toggle-mode"],
+  .reader-tools [data-action="toggle-bookmark"] { display: none; }
 }
 
 /* ---- Lightbox tool pill: on phones 6×44 + gap overflows 320px.

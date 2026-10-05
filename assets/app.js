@@ -208,7 +208,7 @@
         '<span class="book-num">VOL ' + String(b.num).padStart(2, "0") + "</span>" +
         '<div class="book-cover-wrap"><img class="book-cover" loading="lazy" src="' + esc(b.cover) + '" alt="' + esc(b.title) + '"/></div>' +
         '<div class="book-meta">' +
-        '<div class="book-title">' + esc(b.title) + "</div>" +
+        '<div class="book-title">Volume ' + String(b.num) + "</div>" +
         '<div class="book-sub">' + esc(b.subtitle || "") + "</div>" +
         '<div class="book-progress"><span class="bar"><i style="width:' + pct + '%"></i></span><span class="pct">' + pct + "%</span></div>" +
         "</div>";

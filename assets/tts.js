@@ -227,6 +227,8 @@
 
   rateEl.addEventListener("input", function () {
     state.rate = parseFloat(rateEl.value);
+    var rv = document.getElementById("tts-rate-val");
+    if (rv) rv.textContent = state.rate.toFixed(1) + "×";
   });
   voiceEl.addEventListener("change", function () {
     state.voiceURI = voiceEl.value;
