@@ -42,7 +42,7 @@
   }
   function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
-  var prefs = load(KEYS.prefs, { theme: "ink", mode: "scroll", font: "novel", fz: 19, lh: 1.75, col: 34 });
+  var prefs = load(KEYS.prefs, { theme: "ink", mode: "scroll", font: "novel", fz: 19, lh: 1.75, col: 34, autoScroll: false, autoScrollSpeed: 1 });
   var prog = load(KEYS.prog, {});
   var bms = load(KEYS.bms, []);
   var hls = load(KEYS.hls, []);
@@ -128,6 +128,12 @@
     $$("#seg-mode button").forEach(function (b) { var on = b.getAttribute("data-m") === prefs.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     $$("#seg-font button").forEach(function (b) { var on = b.getAttribute("data-f") === prefs.font; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     var btnMode = $("#btn-mode"); if (btnMode) btnMode.setAttribute("aria-pressed", String(prefs.mode === "paged"));
+    // auto-scroll UI
+    var asVal = $("#as-val"); if (asVal) asVal.textContent = prefs.autoScroll ? "aktif" : "mati";
+    $$("#seg-auto-scroll button").forEach(function (b) { var on = (b.getAttribute("data-a") === "on") === prefs.autoScroll; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    var asSpeedGroup = $("#as-speed-group"); if (asSpeedGroup) asSpeedGroup.hidden = !prefs.autoScroll;
+    var rngAsSpeed = $("#rng-as-speed"); if (rngAsSpeed) rngAsSpeed.value = prefs.autoScrollSpeed;
+    var asSpeedVal = $("#as-speed-val"); if (asSpeedVal) asSpeedVal.textContent = prefs.autoScrollSpeed.toFixed(1) + "×";
   }
   function savePrefs() { save(KEYS.prefs, prefs); }
 
@@ -169,6 +175,7 @@
       renderReader();
     } else {
       state.view = "lib";
+      stopAutoScroll();
       showView("lib");
       setHash("lib", true);
     }
@@ -407,6 +414,8 @@
       it.classList.toggle("is-current", parseInt(it.getAttribute("data-c"), 10) === c);
     });
     updateProgress();
+    // resume auto-scroll if enabled
+    if (prefs.autoScroll && state.mode === "scroll") startAutoScroll();
   }
 
   function renderParagraphInner(vid, c, pi, text) {
@@ -442,6 +451,9 @@
     }
     var mv = $("#mode-val"); if (mv) mv.textContent = state.mode === "paged" ? "halaman" : "gulir";
     var btnMode = $("#btn-mode"); if (btnMode) btnMode.setAttribute("aria-pressed", String(state.mode === "paged"));
+    // auto-scroll: stop in paged, start in scroll if enabled
+    if (state.mode === "paged") stopAutoScroll();
+    else if (prefs.autoScroll && state.view === "reader") startAutoScroll();
   }
 
   function recomputePaged() {
@@ -991,6 +1003,13 @@
       case "set-theme": { prefs.theme = el.getAttribute("data-t"); applyPrefs(); savePrefs(); toast("Tema " + prefs.theme); break; }
       case "set-mode": { prefs.mode = el.getAttribute("data-m"); state.mode = prefs.mode; applyPrefs(); savePrefs(); applyMode(); if (prefs.mode === "scroll") setHash("r/" + state.vid + "/" + state.c, true); break; }
       case "set-font": { prefs.font = el.getAttribute("data-f"); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); break; }
+      case "set-auto-scroll": {
+        prefs.autoScroll = (el.getAttribute("data-a") === "on");
+        applyPrefs(); savePrefs();
+        if (prefs.autoScroll) startAutoScroll(); else stopAutoScroll();
+        toast(prefs.autoScroll ? "Gulir otomatis aktif" : "Gulir otomatis mati");
+        break;
+      }
       case "toggle-tts": if (window.MT_TTS) { MT_TTS.open(); if (!MT_TTS.playing) { var cp = currentParagraph(); MT_TTS.from(cp || $("#prose p[data-pi]")); } } break;
       case "tts-close": if (window.MT_TTS) MT_TTS.close(); break;
       case "tts-toggle": if (window.MT_TTS) MT_TTS.toggle(); break;
@@ -1146,6 +1165,8 @@
   $("#rng-fz").addEventListener("input", function () { prefs.fz = parseInt(this.value, 10); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
   $("#rng-lh").addEventListener("input", function () { prefs.lh = parseFloat(this.value); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
   $("#rng-col").addEventListener("input", function () { prefs.col = parseInt(this.value, 10); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
+  var rngAsSpeed = $("#rng-as-speed");
+  if (rngAsSpeed) rngAsSpeed.addEventListener("input", function () { prefs.autoScrollSpeed = parseFloat(this.value); applyPrefs(); savePrefs(); });
   $("#search-input").addEventListener("input", function () { runSearch(this.value); });
 
   /* ---------------- close settings on outside click (capture click) ---------------- */
@@ -1191,6 +1212,48 @@
       if (window.MT_App && MT_App.toast) toast("Pembaruan tersedia — muat ulang untuk versi baru");
     });
   }
+
+  /* ---------------- auto-scroll mode ---------------- */
+  var autoScrollRAF = null;
+  var autoScrollPaused = false;
+  function startAutoScroll() {
+    stopAutoScroll();
+    if (state.mode !== "scroll" || state.view !== "reader") return;
+    autoScrollPaused = false;
+    var scroller = $("#reader-scroller");
+    var lastTime = 0;
+    function loop(t) {
+      if (!prefs.autoScroll || state.mode !== "scroll") { stopAutoScroll(); return; }
+      if (!autoScrollPaused) {
+        if (lastTime) {
+          var dt = t - lastTime;
+          scroller.scrollTop += prefs.autoScrollSpeed * dt * 0.04;
+          if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) {
+            var maxChap = chaptersOf(state.vid).length - 1;
+            if (state.c < maxChap) { lastTime = 0; goChapter(state.c + 1); }
+            else { stopAutoScroll(); prefs.autoScroll = false; applyPrefs(); savePrefs(); toast("Selesai membaca volume"); }
+            return;
+          }
+        }
+        lastTime = t;
+      } else { lastTime = 0; }
+      autoScrollRAF = requestAnimationFrame(loop);
+    }
+    autoScrollRAF = requestAnimationFrame(loop);
+  }
+  function stopAutoScroll() {
+    if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+    autoScrollPaused = false;
+  }
+  (function () {
+    var scroller = $("#reader-scroller");
+    if (!scroller) return;
+    ["wheel", "touchstart", "pointerdown"].forEach(function (ev) {
+      scroller.addEventListener(ev, function () { if (prefs.autoScroll) autoScrollPaused = true; }, { passive: true });
+    });
+    // resume on tap after pause
+    scroller.addEventListener("click", function () { if (prefs.autoScroll && autoScrollPaused) autoScrollPaused = false; });
+  })();
 
   /* ---------------- boot ---------------- */
   window.addEventListener("popstate", route);

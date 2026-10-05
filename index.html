@@ -204,6 +204,17 @@ if ("serviceWorker" in navigator) {
         <div class="pop-label"><span>Lebar kolom</span><span class="val" id="col-val">34rem</span></div>
         <input class="range" id="rng-col" type="range" min="24" max="46" step="1" value="34" aria-label="Lebar kolom" />
       </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Gulir otomatis</span><span class="val" id="as-val">mati</span></div>
+        <div class="seg" id="seg-auto-scroll">
+          <button data-action="set-auto-scroll" data-a="off">Mati</button>
+          <button data-action="set-auto-scroll" data-a="on">Aktif</button>
+        </div>
+      </div>
+      <div class="pop-group" id="as-speed-group" hidden>
+        <div class="pop-label"><span>Kecepatan gulir</span><span class="val" id="as-speed-val">1.0×</span></div>
+        <input class="range" id="rng-as-speed" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="Kecepatan gulir otomatis" />
+      </div>
     </div>
 
     <!-- ===================== TTS PANEL ===================== -->
