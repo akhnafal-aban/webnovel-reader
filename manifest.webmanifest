@@ -1,0 +1,14 @@
+{
+  "name": "Webnovel",
+  "short_name": "Webnovel",
+  "description": "Pembaca novel ringan bahasa Indonesia — Mushoku Tensei dan lainnya.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0E0F13",
+  "theme_color": "#0E0F13",
+  "lang": "id",
+  "icons": [
+    { "src": "img/v15/thumbs/illust_p001.jpg", "sizes": "420x599", "type": "image/jpeg", "purpose": "any" }
+  ]
+}
