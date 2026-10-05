@@ -1,0 +1,103 @@
+{
+  "volumes": [
+    {
+      "vid": "v15",
+      "num": 15,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt15/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt15/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt15/illust_map.json"
+    },
+    {
+      "vid": "v16",
+      "num": 16,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt16/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt16/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt16/illust_map.json"
+    },
+    {
+      "vid": "v17",
+      "num": 17,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt17/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt17/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt17/illust_map.json"
+    },
+    {
+      "vid": "v18",
+      "num": 18,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt18/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt18/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt18/illust_map.json"
+    },
+    {
+      "vid": "v19",
+      "num": 19,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt19/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt19/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt19/illust_map.json"
+    },
+    {
+      "vid": "v20",
+      "num": 20,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt20/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt20/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt20/illust_map.json"
+    },
+    {
+      "vid": "v21",
+      "num": 21,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt21/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt21/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt21/illust_map.json"
+    },
+    {
+      "vid": "v22",
+      "num": 22,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt22/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt22/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt22/illust_map.json"
+    },
+    {
+      "vid": "v23",
+      "num": 23,
+      "title": "Mushoku Tensei",
+      "subtitle": "Jobless Reincarnation",
+      "lang": "id",
+      "series": "Mushoku Tensei",
+      "id_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt23/id_chapters",
+      "illust_dir": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt23/illust",
+      "illust_map": "/Users/aban/.config/openchamber/chats/2026-10-04/session-b7e92cab-7038-4041-9b9d-7b207f79dce4/mt23/illust_map.json"
+    }
+  ]
+}

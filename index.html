@@ -10,6 +10,16 @@
   <link rel="icon" href="img/v15/thumbs/illust_p001.jpg" />
   <link rel="stylesheet" href="assets/tokens.css" />
   <link rel="stylesheet" href="assets/app.css" />
+<script>
+// Unregister legacy SW (assets/sw.js scope /assets/) sebelum app load
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) {
+      try { if (/\/assets\/$/.test(new URL(r.scope).pathname)) r.unregister(); } catch(e) {}
+    });
+  });
+}
+</script>
 </head>
 <body data-view="lib">
   <div id="app-root">

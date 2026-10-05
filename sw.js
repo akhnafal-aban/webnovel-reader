@@ -4,7 +4,7 @@
    network-first for JS/CSS/data/HTML (always fresh when online),
    cache-first for images. Offline-friendly PWA. Zero deps.
    ========================================================================= */
-var CACHE = "mt-reader-v2";
+var CACHE = "mt-reader-v3";
 var CORE = [
   "./",
   "./index.html",
@@ -16,10 +16,27 @@ var CORE = [
   "./assets/sw.js",
   "./assets/vendor/animejs.umd.js",
   "./data/books.js",
-  "./data/v15/chapters.js",
-  "./data/v16/chapters.js",
+  "",
+  "",
   "./manifest.webmanifest"
-];
+  "./data/v15/chapters.js",
+  "./img/v15/cover/cover.jpg",
+  "./data/v16/chapters.js",
+  "./img/v16/cover/cover.jpg",
+  "./data/v17/chapters.js",
+  "./img/v17/cover/cover.jpg",
+  "./data/v18/chapters.js",
+  "./img/v18/cover/cover.jpg",
+  "./data/v19/chapters.js",
+  "./img/v19/cover/cover.jpg",
+  "./data/v20/chapters.js",
+  "./img/v20/cover/cover.jpg",
+  "./data/v21/chapters.js",
+  "./img/v21/cover/cover.jpg",
+  "./data/v22/chapters.js",
+  "./img/v22/cover/cover.jpg",
+  "./data/v23/chapters.js",
+  "./img/v23/cover/cover.jpg",];
 
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(CORE).catch(function () {}); }).then(function () { return self.skipWaiting(); }));
