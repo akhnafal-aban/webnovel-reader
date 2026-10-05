@@ -6,10 +6,10 @@
   <meta name="color-scheme" content="dark light" />
   <meta name="description" content="Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline." />
   <title>MT Reader — Pembaca Novel</title>
-  <link rel="manifest" href="manifest.webmanifest?v=15" />
-  <link rel="icon" href="img/v15/cover/cover.jpg?v=15" />
-  <link rel="stylesheet" href="assets/tokens.css?v=15" />
-  <link rel="stylesheet" href="assets/app.css?v=15" />
+  <link rel="manifest" href="manifest.webmanifest?v=16" />
+  <link rel="icon" href="img/v15/cover/cover.jpg?v=16" />
+  <link rel="stylesheet" href="assets/tokens.css?v=16" />
+  <link rel="stylesheet" href="assets/app.css?v=16" />
 <script>
 // Unregister legacy SW (assets/sw.js scope /assets/) sebelum app load
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
@@ -217,17 +217,6 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
         <input class="range" id="rng-col" type="range" min="24" max="46" step="1" value="34" aria-label="Lebar kolom" />
       </div>
       <div class="pop-group">
-        <div class="pop-label"><span>Gulir otomatis</span><span class="val" id="as-val">mati</span></div>
-        <div class="seg" id="seg-auto-scroll">
-          <button data-action="set-auto-scroll" data-a="off">Mati</button>
-          <button data-action="set-auto-scroll" data-a="on">Aktif</button>
-        </div>
-      </div>
-      <div class="pop-group" id="as-speed-group" hidden>
-        <div class="pop-label"><span>Kecepatan gulir</span><span class="val" id="as-speed-val">1.0×</span></div>
-        <input class="range" id="rng-as-speed" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="Kecepatan gulir otomatis" />
-      </div>
-      <div class="pop-group">
         <div class="pop-label"><span>Fokus garis</span><span class="val" id="focus-val">mati</span></div>
         <div class="seg" id="seg-focus">
           <button data-action="set-focus" data-f="off">Mati</button>
@@ -327,6 +316,30 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
       <div class="lb-hint">scroll = zoom · 0 = reset · esc = tutup</div>
     </div>
 
+    <!-- ===================== AUTO-SCROLL FAB + FLOATING PANEL ===================== -->
+    <button id="fab-autoscroll" class="fab-as" data-action="fab-autoscroll" aria-label="Gulir otomatis: atur kecepatan" aria-pressed="false" hidden>
+      <svg id="fab-as-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5l13 7.5-13 7.5z"/></svg>
+      <svg id="fab-as-pause" viewBox="0 0 24 24" fill="currentColor" hidden><rect x="6" y="4" width="4" height="16" rx="1.2"/><rect x="14" y="4" width="4" height="16" rx="1.2"/></svg>
+      <i class="fab-as-ripple" aria-hidden="true"></i>
+    </button>
+    <div id="autoscroll-panel" class="as-panel" role="dialog" aria-label="Pengaturan gulir otomatis" aria-hidden="true">
+      <div class="as-panel-head">
+        <span class="as-panel-title">Gulir Otomatis</span>
+        <button class="iconbtn as-panel-close" data-action="as-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="as-panel-body">
+        <button class="as-play" id="as-play-toggle" data-action="as-play-toggle" aria-label="Mulai gulir otomatis" aria-pressed="false">
+          <svg class="as-play-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+          <svg class="as-pause-ico" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/></svg>
+        </button>
+        <div class="as-ctrl">
+          <div class="as-ctrl-label"><span>Kecepatan</span><span class="as-speed-val" id="as-speed-val2">1.0×</span></div>
+          <input class="range" id="as-speed" type="range" min="0.3" max="3" step="0.1" value="1" aria-label="Kecepatan gulir otomatis" />
+        </div>
+      </div>
+      <div class="as-hint">gulir manual = jeda · tap teks = lanjut</div>
+    </div>
+
     <!-- ===================== TOAST ===================== -->
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -345,25 +358,25 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
   </div>
 
   <!-- ===================== DATA (preload, defines globals) ===================== -->
-  <script src="data/books.js?v=15"></script>
-  <script src="data/v15/chapters.js?v=15"></script>
-  <script src="data/v16/chapters.js?v=15"></script>
-  <script src="data/v17/chapters.js?v=15"></script>
-  <script src="data/v18/chapters.js?v=15"></script>
-  <script src="data/v19/chapters.js?v=15"></script>
-  <script src="data/v20/chapters.js?v=15"></script>
-  <script src="data/v21/chapters.js?v=15"></script>
-  <script src="data/v22/chapters.js?v=15"></script>
-  <script src="data/v23/chapters.js?v=15"></script>
+  <script src="data/books.js?v=16"></script>
+  <script src="data/v15/chapters.js?v=16"></script>
+  <script src="data/v16/chapters.js?v=16"></script>
+  <script src="data/v17/chapters.js?v=16"></script>
+  <script src="data/v18/chapters.js?v=16"></script>
+  <script src="data/v19/chapters.js?v=16"></script>
+  <script src="data/v20/chapters.js?v=16"></script>
+  <script src="data/v21/chapters.js?v=16"></script>
+  <script src="data/v22/chapters.js?v=16"></script>
+  <script src="data/v23/chapters.js?v=16"></script>
   <!-- vendored anime.js v4.5.0 (offline) -->
-  <script src="assets/vendor/animejs.umd.js?v=15"></script>
+  <script src="assets/vendor/animejs.umd.js?v=16"></script>
   <!-- app modules -->
-  <script src="data/meta_a.js?v=15"></script>
-  <script src="data/meta_b.js?v=15"></script>
-  <script src="assets/sync.js?v=15"></script>
-  <script src="assets/lightbox.js?v=15"></script>
-  <script src="assets/tts.js?v=15"></script>
-  <script src="assets/ambient.js?v=15"></script>
-  <script src="assets/app.js?v=15"></script>
+  <script src="data/meta_a.js?v=16"></script>
+  <script src="data/meta_b.js?v=16"></script>
+  <script src="assets/sync.js?v=16"></script>
+  <script src="assets/lightbox.js?v=16"></script>
+  <script src="assets/tts.js?v=16"></script>
+  <script src="assets/ambient.js?v=16"></script>
+  <script src="assets/app.js?v=16"></script>
 </body>
 </html>

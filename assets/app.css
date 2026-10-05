@@ -729,3 +729,86 @@ body.indent-on .prose .pov-line { text-indent: 0; }
 .tts-sleep-row select { min-height: var(--tap); background: var(--bg-sink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 var(--sp-2); font-size: 12px; color: var(--ink); }
 .tts-sleep-row select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tts-sleep-remain { font-family: var(--font-mono); font-size: 12px; color: var(--accent-ink); min-width: 40px; }
+
+/* =========================================================================
+   AUTO-SCROLL FAB + FLOATING PANEL (speed-configurable auto scroll)
+   FAB bottom-right of the reader; panel floats above it with a springy
+   entrance. Transform/opacity only. prefers-reduced-motion == instant.
+   ========================================================================= */
+.fab-as {
+  position: fixed; right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  z-index: 70; width: 52px; height: 52px; border-radius: 50%;
+  border: none; cursor: pointer; padding: 0;
+  background: var(--accent); color: var(--on-accent);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.08);
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.fab-as[hidden] { display: none; }
+.fab-as svg { width: 22px; height: 22px; pointer-events: none; }
+.fab-as:hover { transform: translateY(-2px); }
+.fab-as:active { transform: scale(.92); }
+.fab-as:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* running state: pause glyph + amber ring */
+.fab-as.is-on { background: var(--bg-elev); color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(0,0,0,.35); }
+.fab-as.is-on #fab-as-play { display: none; }
+.fab-as.is-on #fab-as-pause { display: block; }
+.fab-as #fab-as-pause { display: none; }
+.fab-as.is-paused::after { content: ""; position: absolute; inset: -7px; border-radius: 50%; border: 2px dashed var(--accent); opacity: .55; }
+.fab-as .fab-as-ripple { display: none; }
+.fab-as.is-on .fab-as-ripple {
+  display: block; position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid var(--accent); opacity: 0; pointer-events: none;
+  animation: as-ripple 2.4s var(--ease-out) infinite;
+}
+@keyframes as-ripple {
+  0% { transform: scale(.8); opacity: .55; }
+  70% { opacity: 0; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* floating config panel */
+.as-panel {
+  position: fixed; right: calc(18px + env(safe-area-inset-right, 0px));
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  z-index: 70; width: min(272px, calc(100vw - 36px));
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: var(--r-md); box-shadow: var(--shadow-2, 0 16px 40px rgba(0,0,0,.35));
+  padding: 14px 14px 12px;
+  visibility: hidden; opacity: 0; transform: translateY(14px) scale(.96);
+  will-change: transform, opacity;
+}
+.as-panel.is-open { visibility: visible; }
+.as-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.as-panel-title { font-family: var(--font-ui); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.as-panel-close { width: 32px; height: 32px; }
+.as-panel-body { display: flex; gap: 14px; align-items: center; }
+.as-play {
+  width: 50px; height: 50px; min-width: 50px; border-radius: 50%;
+  border: none; cursor: pointer; padding: 0;
+  background: var(--accent); color: var(--on-accent);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.as-play:hover { transform: scale(1.05); }
+.as-play:active { transform: scale(.94); }
+.as-play:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.as-play svg { width: 22px; height: 22px; pointer-events: none; }
+.as-play .as-pause-ico { display: none; }
+.as-play.is-active { background: var(--accent-soft); border: 2px solid var(--accent); color: var(--accent); }
+.as-play.is-active .as-play-ico { display: none; }
+.as-play.is-active .as-pause-ico { display: block; }
+.as-ctrl { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.as-ctrl-label { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+.as-speed-val { color: var(--ink-soft); font-size: 12px; }
+.as-hint { margin-top: 12px; font-size: 10.5px; font-family: var(--font-mono); color: var(--ink-faint); text-align: center; }
+
+@media (max-width: 430px) {
+  .fab-as { width: 48px; height: 48px; }
+  .as-panel { bottom: calc(78px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab-as .fab-as-ripple { animation: none !important; }
+  .fab-as, .as-play { transition: none; }
+}

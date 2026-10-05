@@ -16,6 +16,19 @@
   var clamp = function (v, a, b) { return v < a ? a : v > b ? b : v; };
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  /* ---------------- animation helper (animejs v4 — namespace API) ----------------
+     The vendored v4 UMD exposes a NAMESPACE (anime.animate / anime.stagger),
+     NOT the v3 legacy anime() function. This helper normalizes v3-style params
+     into v4 (ease prefix, complete→onComplete) and no-ops gracefully. */
+  var anim = function (targets, params) {
+    if (reduceMotion || !window.anime || !window.anime.animate) return null;
+    var p = {}, k;
+    for (k in params) { if (Object.prototype.hasOwnProperty.call(params, k)) p[k] = params[k]; }
+    if (p.easing) { p.ease = String(p.easing).replace(/^ease/, ""); delete p.easing; }
+    if (p.complete && !p.onComplete) { p.onComplete = p.complete; delete p.complete; }
+    try { return window.anime.animate(targets, p); } catch (e) { return null; }
+  };
+
   /* ---------------- data access ---------------- */
   var BOOKS = window.__MT_BOOKS__ || [];
   function chaptersOf(vid) {
@@ -151,15 +164,15 @@
   function animateFlame() {
     var flame = $("#streak-flame");
     if (!flame || reduceMotion || !window.anime) return;
-    try { anime({ targets: flame, scale: [0.4, 1.2, 1], duration: 700, easing: "easeOutElastic(1, .6)" }); } catch (e) {}
+    anim(flame, { scale: [0.4, 1.2, 1], duration: 700, easing: "easeOutElastic(1, .6)" });
   }
   function pulseGoalCell() {
     if (reduceMotion) return;
     var cell = $("#goal-ring");
     if (!cell) return;
     try {
-      if (window.anime) anime({ targets: cell, scale: [1, 1.12, 1], duration: 560, easing: "easeOutQuad" });
-      else if (cell.animate) cell.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 560, easing: "ease-out" });
+      anim(cell, { scale: [1, 1.12, 1], duration: 560, easing: "easeOutQuad" });
+      if (!window.anime && cell.animate) cell.animate([{ transform: "scale(1)" }, { transform: "scale(1.12)" }, { transform: "scale(1)" }], { duration: 560, easing: "ease-out" });
     } catch (e) {}
   }
   function computeStreak() {
@@ -205,11 +218,8 @@
     $$("#seg-mode button").forEach(function (b) { var on = b.getAttribute("data-m") === prefs.mode; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     $$("#seg-font button").forEach(function (b) { var on = b.getAttribute("data-f") === prefs.font; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     var btnMode = $("#btn-mode"); if (btnMode) btnMode.setAttribute("aria-pressed", String(prefs.mode === "paged"));
-    // auto-scroll UI
-    var asVal = $("#as-val"); if (asVal) asVal.textContent = prefs.autoScroll ? "aktif" : "mati";
-    $$("#seg-auto-scroll button").forEach(function (b) { var on = (b.getAttribute("data-a") === "on") === prefs.autoScroll; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
-    var asSpeedGroup = $("#as-speed-group"); if (asSpeedGroup) asSpeedGroup.hidden = !prefs.autoScroll;
-    var rngAsSpeed = $("#rng-as-speed"); if (rngAsSpeed) rngAsSpeed.value = prefs.autoScrollSpeed;
+    // auto-scroll UI lives in the floating FAB panel; sync only
+    syncAutoScrollUI();
     var asSpeedVal = $("#as-speed-val"); if (asSpeedVal) asSpeedVal.textContent = prefs.autoScrollSpeed.toFixed(1) + "×";
     // resolve theme auto (system / time) — applied but not persisted as the resolved value
     if (autoOn) { prefs.theme = resolveTheme(); document.documentElement.setAttribute("data-theme", prefs.theme); }
@@ -340,6 +350,7 @@
     document.body.setAttribute("data-view", v);
     $("#view-lib").classList.toggle("is-active", v === "lib");
     $("#view-reader").classList.toggle("is-active", v === "reader");
+    autoScrollViewSync();
   }
 
   /* ============================================================
@@ -386,7 +397,7 @@
     // staggered entrance
     if (!reduceMotion && window.anime) {
       try {
-        anime({ targets: "#stage-row .book-card", translateY: [18, 0], opacity: [0, 1], delay: anime.stagger(70, { from: "center" }), duration: 540, ease: "outExpo" });
+        anim("#stage-row .book-card", { translateY: [18, 0], opacity: [0, 1], delay: window.anime ? window.anime.stagger(70, { from: "center" }) : 0, duration: 540, ease: "outExpo" });
       } catch (e) {}
     }
   }
@@ -598,7 +609,7 @@
     if (!reduceMotion && window.anime && state._lastChapKey !== (vid + ":" + c)) {
       state._lastChapKey = vid + ":" + c;
       try {
-        anime({ targets: "#prose > *", translateY: [14, 0], opacity: [0, 1], delay: anime.stagger(40, { start: 40 }), duration: 380, ease: "outQuad" });
+        anim("#prose > *", { translateY: [14, 0], opacity: [0, 1], delay: window.anime ? window.anime.stagger(40, { start: 40 }) : 0, duration: 380, ease: "outQuad" });
       } catch (e) {}
     }
 
@@ -647,6 +658,7 @@
     // auto-scroll: stop in paged, start in scroll if enabled
     if (state.mode === "paged") stopAutoScroll();
     else if (prefs.autoScroll && state.view === "reader") startAutoScroll();
+    autoScrollViewSync();
     // line focus only applies in scroll mode
     applyFocus();
   }
@@ -706,7 +718,7 @@
     // page-turn cue (uses CSS individual `translate` property — composes with the
     // paged `transform`, so the column offset is preserved)
     if (!reduceMotion && window.anime) {
-      try { anime({ targets: "#prose", translateX: [p > prev ? 14 : -14, 0], opacity: [0.5, 1], duration: 160, easing: "easeOutQuad" }); } catch (e) {}
+      try { anim("#prose", { translateX: [p > prev ? 14 : -14, 0], opacity: [0.5, 1], duration: 160, easing: "easeOutQuad" }); } catch (e) {}
     }
   }
 
@@ -1339,11 +1351,13 @@
       }
       case "set-mode": { prefs.mode = el.getAttribute("data-m"); state.mode = prefs.mode; applyPrefs(); savePrefs(); applyMode(); if (prefs.mode === "scroll") setHash("r/" + state.vid + "/" + state.c, true); break; }
       case "set-font": { prefs.font = el.getAttribute("data-f"); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); break; }
-      case "set-auto-scroll": {
-        prefs.autoScroll = (el.getAttribute("data-a") === "on");
+      /* ---- auto-scroll FAB + floating panel ---- */
+      case "fab-autoscroll": openAutoScrollPanel(); break;
+      case "as-close": closeAutoScrollPanel(); break;
+      case "as-play-toggle": {
+        if (prefs.autoScroll) { prefs.autoScroll = false; stopAutoScroll(); toast("Gulir otomatis berhenti"); }
+        else { prefs.autoScroll = true; savePrefs(); startAutoScroll(); toast("Gulir otomatis berjalan"); }
         applyPrefs(); savePrefs();
-        if (prefs.autoScroll) startAutoScroll(); else stopAutoScroll();
-        toast(prefs.autoScroll ? "Gulir otomatis aktif" : "Gulir otomatis mati");
         break;
       }
       case "toggle-tts": if (window.MT_TTS) { MT_TTS.open(); if (!MT_TTS.playing) { var cp = currentParagraph(); MT_TTS.from(cp || $("#prose p[data-pi]")); } } break;
@@ -1517,7 +1531,7 @@
       if (e.key === "0") { MT_LB.reset(); return; }
       return;
     }
-    if (e.key === "Escape") { closeSheets(); if (window.MT_TTS) MT_TTS.close(); return; }
+    if (e.key === "Escape") { closeSheets(); closeAutoScrollPanel(); if (window.MT_TTS) MT_TTS.close(); return; }
     if (state.view !== "reader") {
       if (e.key === "/") { e.preventDefault(); handle("open-search", null); }
       return;
@@ -1581,8 +1595,15 @@
   $("#rng-fz").addEventListener("input", function () { prefs.fz = parseInt(this.value, 10); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
   $("#rng-lh").addEventListener("input", function () { prefs.lh = parseFloat(this.value); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
   $("#rng-col").addEventListener("input", function () { prefs.col = parseInt(this.value, 10); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); });
-  var rngAsSpeed = $("#rng-as-speed");
-  if (rngAsSpeed) rngAsSpeed.addEventListener("input", function () { prefs.autoScrollSpeed = parseFloat(this.value); applyPrefs(); savePrefs(); });
+  var asSpeed = $("#as-speed");
+  if (asSpeed) {
+    asSpeed.addEventListener("input", function () {
+      prefs.autoScrollSpeed = parseFloat(this.value);
+      var sv = $("#as-speed-val2"); if (sv) sv.textContent = prefs.autoScrollSpeed.toFixed(1) + "×";
+      savePrefs();
+    });
+    asSpeed.addEventListener("change", function () { applyPrefs(); });
+  }
   var rngAmbVol = $("#rng-ambient-vol");
   if (rngAmbVol) rngAmbVol.addEventListener("input", function () {
     prefs.ambientVol = parseFloat(this.value);
@@ -1651,9 +1672,10 @@
   /* ---------------- auto-scroll mode ---------------- */
   var autoScrollRAF = null;
   var autoScrollPaused = false;
+
   function startAutoScroll() {
     stopAutoScroll();
-    if (state.mode !== "scroll" || state.view !== "reader") return;
+    if (state.mode !== "scroll" || state.view !== "reader") { syncAutoScrollUI(); return; }
     autoScrollPaused = false;
     var scroller = $("#reader-scroller");
     var lastTime = 0;
@@ -1675,20 +1697,117 @@
       autoScrollRAF = requestAnimationFrame(loop);
     }
     autoScrollRAF = requestAnimationFrame(loop);
+    syncAutoScrollUI();
   }
   function stopAutoScroll() {
     if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
     autoScrollPaused = false;
+    syncAutoScrollUI();
   }
+
+  /* view/visibility sync: FAB lives only in scroll-mode reader */
+  function autoScrollViewSync() {
+    var fab = $("#fab-autoscroll");
+    if (!fab) return;
+    var visible = state.view === "reader" && state.mode !== "paged";
+    if (visible && fab.hidden) {
+      fab.hidden = false;
+      fabEntrance();
+    } else if (!visible && !fab.hidden) {
+      fab.hidden = true;
+      closeAutoScrollPanel(true);
+      stopAutoScroll();
+    }
+  }
+
+  /* one-way state → UI mirror (FAB glyph, play button, slider, hint) */
+  function syncAutoScrollUI() {
+    var fab = $("#fab-autoscroll");
+    if (!fab) return;
+    var running = !!(prefs.autoScroll && !autoScrollPaused);
+    fab.hidden = !(state.view === "reader" && state.mode !== "paged");
+    fab.classList.toggle("is-on", running);
+    fab.classList.toggle("is-paused", !!(prefs.autoScroll && autoScrollPaused));
+    fab.setAttribute("aria-pressed", String(!!prefs.autoScroll));
+    fab.setAttribute("aria-label", prefs.autoScroll ? (autoScrollPaused ? "Gulir otomatis dijeda — ketuk untuk melanjutkan" : "Gulir otomatis berjalan — ketuk untuk jeda") : "Gulir otomatis: atur kecepatan");
+    var play = $("#as-play-toggle");
+    if (play) {
+      play.classList.toggle("is-active", !!prefs.autoScroll);
+      play.setAttribute("aria-pressed", String(!!prefs.autoScroll));
+      play.setAttribute("aria-label", prefs.autoScroll ? "Jeda gulir otomatis" : "Mulai gulir otomatis");
+    }
+    var sp = $("#as-speed");
+    if (sp && document.activeElement !== sp) sp.value = prefs.autoScrollSpeed;
+    var sv = $("#as-speed-val2"); if (sv) sv.textContent = prefs.autoScrollSpeed.toFixed(1) + "×";
+    var hint = $(".as-hint");
+    if (hint) {
+      hint.textContent = prefs.autoScroll
+        ? (autoScrollPaused ? "dijeda — ketuk teks untuk lanjut" : "berjalan · gulir manual = jeda")
+        : "ketuk ▶ untuk mulai dari posisi ini";
+    }
+  }
+
+  /* FAB spring-entrance (skill: purposeful motion, transform/opacity only) */
+  function fabEntrance() {
+    if (!reduceMotion && window.anime) {
+      anim("#fab-autoscroll", { scale: [.4, 1.14, 1], opacity: [0, 1], duration: 460, easing: "easeOutElastic(1, .55)" });
+    }
+  }
+
+  /* floating panel open/close with layered motion (slide + fade + settle) */
+  function openAutoScrollPanel() {
+    var panel = $("#autoscroll-panel");
+    if (!panel) return;
+    if (panel.classList.contains("is-open")) { closeAutoScrollPanel(); return; }
+    panel.classList.add("is-open");
+    panel.setAttribute("aria-hidden", "false");
+    if ("inert" in panel) panel.inert = false;
+    // base visibility FIRST (anime is polish only — never leaves panel invisible)
+    panel.style.transform = "none";
+    panel.style.opacity = "1";
+    try { syncAutoScrollUI(); } catch (e) {}
+    if (!reduceMotion && window.anime) {
+      anim(panel, { translateY: [16, 0], scale: [.95, 1], opacity: [0, 1], duration: 300, easing: "easeOutExpo" });
+    }
+  }
+  function closeAutoScrollPanel(silent) {
+    var panel = $("#autoscroll-panel");
+    if (!panel || !panel.classList.contains("is-open")) return;
+    var done = function () {
+      panel.classList.remove("is-open");
+      panel.setAttribute("aria-hidden", "true");
+      if ("inert" in panel) panel.inert = true;
+      panel.style.opacity = "0";
+      panel.style.transform = "translateY(14px) scale(.96)";
+    };
+    if (!reduceMotion && window.anime) {
+      if (!anim(panel, { translateY: [0, 12], scale: [1, .97], opacity: [1, 0], duration: 170, easing: "easeInQuad", complete: done })) done();
+    } else done();
+  }
+
   (function () {
     var scroller = $("#reader-scroller");
     if (!scroller) return;
     ["wheel", "touchstart", "pointerdown"].forEach(function (ev) {
-      scroller.addEventListener(ev, function () { if (prefs.autoScroll) autoScrollPaused = true; }, { passive: true });
+      scroller.addEventListener(ev, function () {
+        if (prefs.autoScroll && !autoScrollPaused) { autoScrollPaused = true; syncAutoScrollUI(); }
+      }, { passive: true });
     });
     // resume on tap after pause
-    scroller.addEventListener("click", function () { if (prefs.autoScroll && autoScrollPaused) autoScrollPaused = false; });
+    scroller.addEventListener("click", function () {
+      if (prefs.autoScroll && autoScrollPaused) { autoScrollPaused = false; syncAutoScrollUI(); }
+    });
   })();
+
+  // tap outside the floating panel closes it (FAB excluded — it toggles)
+  document.addEventListener("click", function (e) {
+    var panel = $("#autoscroll-panel");
+    if (!panel || !panel.classList.contains("is-open")) return;
+    if (panel.contains(e.target)) return;
+    var fab = $("#fab-autoscroll");
+    if (fab && fab.contains(e.target)) return;
+    closeAutoScrollPanel();
+  });
 
   /* ---------------- boot ---------------- */
   window.addEventListener("popstate", route);

@@ -57,9 +57,9 @@
     box.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
     render();
-    if (!reduce && window.anime) {
+    if (!reduce && window.anime && window.anime.animate) {
       try {
-        anime({ targets: img, opacity: [0, 1], scale: [0.92, 1], duration: reduce ? 1 : 360, ease: "outExpo" });
+        window.anime.animate(img, { opacity: [0, 1], scale: [0.92, 1], duration: 360, ease: "outExpo" });
       } catch (e) {}
     }
   }
