@@ -1676,6 +1676,7 @@
 
   /* ---------------- auto-scroll mode ---------------- */
   var autoScrollRAF = null;
+  var autoScrollWatchdog = null;
   var autoScrollPaused = false;
 
   function startAutoScroll() {
@@ -1683,30 +1684,56 @@
     if (state.mode !== "scroll" || state.view !== "reader") { syncAutoScrollUI(); return; }
     autoScrollPaused = false;
     var scroller = $("#reader-scroller");
+    if (!scroller) return;
+    // force instant programmatic scrolls — CSS `scroll-behavior:smooth` fights the
+    // per-frame writes on mobile browsers and can freeze movement at visible zero
+    scroller.style.scrollBehavior = "auto";
     var lastTime = 0;
+    var lastTick = Date.now();
+    var kicked = false;
+    function step(px) {
+      if (!isFinite(px) || px <= 0) px = 0.5;
+      var top = scroller.scrollTop;
+      if (!isFinite(top)) top = 0;
+      scroller.scrollTop = top + px;
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 8) {
+        var maxChap = chaptersOf(state.vid).length - 1;
+        if (state.c < maxChap) { lastTime = 0; goChapter(state.c + 1); }
+        else { stopAutoScroll(); prefs.autoScroll = false; applyPrefs(); savePrefs(); toast("Selesai membaca volume"); }
+        return true;
+      }
+      return false;
+    }
     function loop(t) {
       if (!prefs.autoScroll || state.mode !== "scroll") { stopAutoScroll(); return; }
       if (!autoScrollPaused) {
+        if (!kicked) { kicked = true; step(2); }
         if (lastTime) {
+          lastTick = Date.now();
           var dt = t - lastTime;
-          scroller.scrollTop += prefs.autoScrollSpeed * dt * 0.04;
-          if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 4) {
-            var maxChap = chaptersOf(state.vid).length - 1;
-            if (state.c < maxChap) { lastTime = 0; goChapter(state.c + 1); }
-            else { stopAutoScroll(); prefs.autoScroll = false; applyPrefs(); savePrefs(); toast("Selesai membaca volume"); }
-            return;
-          }
+          if (dt > 16 && step((prefs.autoScrollSpeed || 1) * dt * 0.04)) return;
         }
         lastTime = t;
       } else { lastTime = 0; }
       autoScrollRAF = requestAnimationFrame(loop);
     }
     autoScrollRAF = requestAnimationFrame(loop);
+    // watchdog: some mobile browsers throttle/stall rAF (battery saver, overlays).
+    // If rAF went quiet >700ms, tick manually so auto-scroll never silently dies.
+    var wd = setInterval(function () {
+      if (!prefs.autoScroll || state.mode !== "scroll") { clearInterval(wd); return; }
+      if (autoScrollPaused) return;
+      if (Date.now() - lastTick > 700) step((prefs.autoScrollSpeed || 1) * 2.8);
+    }, 700);
+    autoScrollWatchdog = wd;
     syncAutoScrollUI();
   }
   function stopAutoScroll() {
     if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+    if (autoScrollWatchdog) { clearInterval(autoScrollWatchdog); autoScrollWatchdog = null; }
     autoScrollPaused = false;
+    var scroller = $("#reader-scroller");
+    if (scroller) scroller.style.scrollBehavior = "";
     syncAutoScrollUI();
   }
 
