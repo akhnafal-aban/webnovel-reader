@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="ink">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <meta name="description" content="Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline." />
+  <title>MT Reader — Pembaca Novel</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="img/v15/thumbs/illust_p001.jpg" />
+  <link rel="stylesheet" href="assets/tokens.css" />
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body data-view="lib">
+  <div id="app-root">
+    <div id="ambient" class="ambient" aria-hidden="true"></div>
+
+    <!-- ===================== TOPBAR ===================== -->
+    <header class="topbar" role="banner">
+      <div class="brand" data-action="go-lib" role="button" tabindex="0" aria-label="Ke perpustakaan">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <div class="brand-name">MT <b>READER</b></div>
+          <div class="brand-sub">EMBER · INK</div>
+        </div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="topbar-tools">
+        <button class="iconbtn" data-action="open-search" aria-label="Cari" title="Cari (Ctrl K)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+        <button class="iconbtn" data-action="open-marks" aria-label="Penanda & sorotan" title="Penanda">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        </button>
+        <button class="iconbtn" data-action="open-stats" aria-label="Statistik membaca" title="Statistik">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><rect x="5" y="10" width="3" height="7"/><rect x="11" y="6" width="3" height="11"/><rect x="17" y="13" width="3" height="4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ===================== VIEWS ===================== -->
+    <main id="app">
+
+      <!-- ---------- LIBRARY ---------- -->
+      <section id="view-lib" class="view view-lib is-active" aria-label="Perpustakaan">
+        <div class="lib-wrap">
+          <div id="continue-slot"></div>
+          <div class="sect-head">
+            <h2 class="sect-title">Rak <em>Buku</em></h2>
+            <span class="sect-sub" id="lib-count">— volume</span>
+          </div>
+          <div id="stage" class="stage">
+            <div id="stage-row" class="stage-row"></div>
+          </div>
+          <div id="filmstrip-wrap" class="filmstrip-wrap" hidden>
+            <div class="sect-head">
+              <h2 class="sect-title">Galeri <em>Seni</em></h2>
+              <span class="sect-sub" id="film-title">—</span>
+            </div>
+            <div id="filmstrip" class="filmstrip"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- READER ---------- -->
+      <section id="view-reader" class="view view-reader" aria-label="Pembaca">
+        <div class="reader-toolbar">
+          <button class="iconbtn" data-action="go-lib" aria-label="Kembali ke perpustakaan" title="Kembali">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          </button>
+          <button class="iconbtn" data-action="open-toc" aria-label="Daftar isi" title="Daftar isi">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          </button>
+          <div class="reader-chaptitle" id="reader-chaptitle">—</div>
+          <div class="reader-tools">
+            <button class="iconbtn" data-action="prev-chap" aria-label="Bab sebelumnya" title="Bab sebelumnya">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button class="iconbtn" data-action="next-chap" aria-label="Bab berikutnya" title="Bab berikutnya">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+            <button class="iconbtn" id="btn-mode" data-action="toggle-mode" aria-label="Ganti mode baca" title="Mode: gulir / halaman">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 4v16"/></svg>
+            </button>
+            <button class="iconbtn" data-action="toggle-tts" aria-label="Dengar (TTS)" title="Dengar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a9 9 0 0 1 0 14"/></svg>
+            </button>
+            <button class="iconbtn" data-action="toggle-bookmark" aria-label="Tandai paragraf" title="Tandai / lepas">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <button class="iconbtn" data-action="toggle-settings" aria-label="Pengaturan baca" title="Pengaturan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="reader-stage">
+          <div class="progress-ember"><i id="ember-fill"></i></div>
+          <div id="tap-zones" class="tap-zones hidden">
+            <span class="edge-l" data-action="page-prev" aria-hidden="true"></span>
+            <span data-action="toggle-tap-zones" aria-hidden="true"></span>
+            <span class="edge-r" data-action="page-next" aria-hidden="true"></span>
+          </div>
+          <div id="reader-scroller" class="reader-scroller">
+            <article id="prose" class="prose" data-font="novel"></article>
+          </div>
+          <div id="page-hud" class="page-hud" hidden>
+            <span class="pg-cur" id="pg-cur">1</span><span>/</span><span id="pg-total">1</span>
+            <span class="pg-bar"><i id="pg-bar-fill"></i></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===================== SCRIM ===================== -->
+    <div id="scrim" class="scrim" data-action="close-sheets" aria-hidden="true"></div>
+
+    <!-- ===================== SHEET: TOC ===================== -->
+    <aside id="sheet-toc" class="sheet" role="dialog" aria-label="Daftar isi" aria-hidden="true">
+      <div class="sheet-head">
+        <h2>Daftar Isi</h2>
+        <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="sheet-body"><ol id="toc-list" class="toc-list"></ol></div>
+    </aside>
+
+    <!-- ===================== SHEET: SEARCH ===================== -->
+    <aside id="sheet-search" class="sheet" role="dialog" aria-label="Pencarian" aria-hidden="true">
+      <div class="sheet-head">
+        <h2>Cari</h2>
+        <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="search-bar">
+        <input id="search-input" type="search" placeholder="Cari kata atau frasa…" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="sheet-body" id="search-results"></div>
+    </aside>
+
+    <!-- ===================== SHEET: MARKS ===================== -->
+    <aside id="sheet-marks" class="sheet" role="dialog" aria-label="Penanda & sorotan" aria-hidden="true">
+      <div class="sheet-head">
+        <h2>Penanda</h2>
+        <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="sheet-body" id="marks-list"></div>
+    </aside>
+
+    <!-- ===================== SHEET: STATS ===================== -->
+    <aside id="sheet-stats" class="sheet" role="dialog" aria-label="Statistik" aria-hidden="true">
+      <div class="sheet-head">
+        <h2>Statistik</h2>
+        <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="sheet-body" id="stats-body"></div>
+    </aside>
+
+    <!-- ===================== SETTINGS POPOVER ===================== -->
+    <div id="settings-pop" class="popover" role="dialog" aria-label="Pengaturan" aria-hidden="true">
+      <div class="pop-group">
+        <div class="pop-label"><span>Tema</span><span class="val" id="theme-val">ink</span></div>
+        <div class="swatches" id="swatches">
+          <button class="swatch" data-action="set-theme" data-t="ink"    aria-label="Ink"></button>
+          <button class="swatch" data-action="set-theme" data-t="paper"  aria-label="Paper"></button>
+          <button class="swatch" data-action="set-theme" data-t="sepia"  aria-label="Sepia"></button>
+          <button class="swatch" data-action="set-theme" data-t="dusk"   aria-label="Dusk"></button>
+          <button class="swatch" data-action="set-theme" data-t="moss"   aria-label="Moss"></button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Mode</span><span class="val" id="mode-val">gulir</span></div>
+        <div class="seg" id="seg-mode">
+          <button data-action="set-mode" data-m="scroll">Gulir</button>
+          <button data-action="set-mode" data-m="paged">Halaman</button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Font</span><span class="val" id="font-val">serif</span></div>
+        <div class="seg" id="seg-font">
+          <button data-action="set-font" data-f="novel">Serif</button>
+          <button data-action="set-font" data-f="ui">Sans</button>
+        </div>
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Ukuran</span><span class="val" id="fz-val">19px</span></div>
+        <input class="range" id="rng-fz" type="range" min="15" max="26" step="1" value="19" />
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Jarak baris</span><span class="val" id="lh-val">1.75</span></div>
+        <input class="range" id="rng-lh" type="range" min="1.4" max="2.2" step="0.05" value="1.75" />
+      </div>
+      <div class="pop-group">
+        <div class="pop-label"><span>Lebar kolom</span><span class="val" id="col-val">34rem</span></div>
+        <input class="range" id="rng-col" type="range" min="24" max="46" step="1" value="34" />
+      </div>
+    </div>
+
+    <!-- ===================== TTS PANEL ===================== -->
+    <div id="tts-panel" class="tts-panel" role="dialog" aria-label="Dengar (text to speech)" aria-hidden="true">
+      <div class="tts-top">
+        <h3>Dengar</h3>
+        <button class="iconbtn" data-action="tts-close" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="tts-now" id="tts-now">Tekan putar untuk mulai membaca dari paragraf ini.</div>
+      <div class="tts-controls">
+        <button class="tts-play iconbtn" data-action="tts-toggle" aria-label="Putar / jeda">
+          <svg id="tts-play-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <div class="tts-opts">
+          <label>Kecepatan <input class="range" id="tts-rate" type="range" min="0.6" max="2" step="0.05" value="1" /></label>
+          <label>Suara <select id="tts-voice"></select></label>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== LIGHTBOX ===================== -->
+    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Ilustrasi">
+      <div class="lb-bar">
+        <span class="lb-count" id="lb-count">—</span>
+        <span class="lb-cap" id="lb-cap"></span>
+      </div>
+      <div class="lb-stage" id="lb-stage">
+        <img id="lb-img" class="lb-img" alt="" draggable="false" />
+      </div>
+      <div class="lb-tools">
+        <button class="iconbtn" data-action="lb-prev" aria-label="Sebelumnya"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+        <button class="iconbtn" data-action="lb-zoom-out" aria-label="Perkecil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6"/></svg></button>
+        <span class="lb-z" id="lb-z">100%</span>
+        <button class="iconbtn" data-action="lb-zoom-in" aria-label="Perbesar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button>
+        <button class="iconbtn" data-action="lb-reset" aria-label="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+        <button class="iconbtn" data-action="lb-next" aria-label="Berikutnya"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+      </div>
+      <div class="lb-hint">scroll = zoom · 0 = reset · esc = tutup</div>
+    </div>
+
+    <!-- ===================== TOAST ===================== -->
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <!-- ===================== ERROR GUARD ===================== -->
+    <div id="error-guard" class="error-guard" role="alert" aria-hidden="true">
+      <div class="error-card">
+        <h2>Sesuatu tidak beres</h2>
+        <p>Pembaca mengalami galat tak tertangani. Posisi baca tersimpan. Coba muat ulang atau kembali ke perpustakaan.</p>
+        <pre class="error-code" id="error-code"></pre>
+        <div style="display:flex; gap:12px; justify-content:center">
+          <button class="btn" data-action="err-reload">Muat ulang</button>
+          <button class="btn ghost" data-action="err-go-lib">Ke perpustakaan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DATA (preload, defines globals) ===================== -->
+  <script src="data/books.js"></script>
+  <script src="data/v15/chapters.js"></script>
+  <script src="data/v16/chapters.js"></script>
+  <!-- vendored anime.js v4.5.0 (offline) -->
+  <script src="assets/vendor/animejs.umd.js"></script>
+  <!-- app modules -->
+  <script src="assets/lightbox.js"></script>
+  <script src="assets/tts.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

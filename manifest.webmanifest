@@ -1,14 +1,1 @@
-{
-  "name": "Webnovel",
-  "short_name": "Webnovel",
-  "description": "Pembaca novel ringan bahasa Indonesia — Mushoku Tensei dan lainnya.",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#0E0F13",
-  "theme_color": "#0E0F13",
-  "lang": "id",
-  "icons": [
-    { "src": "img/v15/thumbs/illust_p001.jpg", "sizes": "420x599", "type": "image/jpeg", "purpose": "any" }
-  ]
-}
+{"name": "MT Reader — Pembaca Novel", "short_name": "MT Reader", "description": "Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline.", "start_url": "./index.html", "scope": "./", "display": "standalone", "background_color": "#14110e", "theme_color": "#14110e", "lang": "id", "orientation": "any", "categories": ["books", "education", "entertainment"], "icons": [{"src": "img/v15/thumbs/illust_p001.jpg", "sizes": "420x599", "type": "image/jpeg", "purpose": "any"}, {"src": "img/v15/thumbs/illust_p001.jpg", "sizes": "420x599", "type": "image/jpeg", "purpose": "maskable"}]}
