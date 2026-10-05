@@ -26,7 +26,20 @@
 
   /* ---------------- storage ---------------- */
   var KEYS = { prefs: "mt:prefs", prog: "mt:prog", bms: "mt:bms", hls: "mt:hls", stats: "mt:stats" };
-  function load(key, dflt) { try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : dflt; } catch (e) { return dflt; } }
+  function load(key, dflt) {
+    try {
+      var v = localStorage.getItem(key);
+      if (!v) return dflt;
+      var parsed = JSON.parse(v);
+      if (dflt && typeof dflt === 'object' && !Array.isArray(dflt) && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        var merged = {};
+        for (var k in dflt) merged[k] = (k in parsed) ? parsed[k] : dflt[k];
+        for (var k2 in parsed) if (!(k2 in merged)) merged[k2] = parsed[k2];
+        return merged;
+      }
+      return parsed;
+    } catch (e) { return dflt; }
+  }
   function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
 
   var prefs = load(KEYS.prefs, { theme: "ink", mode: "scroll", font: "novel", fz: 19, lh: 1.75, col: 34 });
