@@ -133,6 +133,8 @@
     return { view: "lib" };
   }
   function setHash(path, replace) {
+    // Always emit a leading slash so the hash matches the brief's contract (#/r/v15/0[/p<N>], #/lib).
+    if (path.charAt(0) !== "/") path = "/" + path;
     if (replace) history.replaceState(null, "", "#" + path);
     else history.pushState(null, "", "#" + path);
   }
@@ -146,8 +148,10 @@
     if (r.view === "reader" && bookById(r.vid)) {
       state.view = "reader"; state.vid = r.vid; state.c = clamp(r.c, 0, chaptersOf(r.vid).length - 1);
       state.mode = prefs.mode;
+      // page only resumes when re-entering the SAME chapter; a different chapter starts at page 0
       if (r.page != null && prefs.mode === "paged") state.page = r.page;
-      else state.page = (prog[r.vid] && prog[r.vid].mode === "paged") ? (prog[r.vid].page || 0) : 0;
+      else if (prog[r.vid] && prog[r.vid].mode === "paged" && prog[r.vid].c === r.c) state.page = prog[r.vid].page || 0;
+      else state.page = 0;
       showView("reader");
       renderReader();
     } else {
@@ -284,9 +288,12 @@
     // toolbar title
     $("#reader-chaptitle").innerHTML = "<b>" + esc(book.title) + "</b> · " + esc(ch.title || "");
 
-    // progress save (chapter reached)
+    // progress save (chapter reached). Reset per-chapter scroll/page when the chapter actually
+    // changes so we never restore a previous chapter's position into a new one.
     var p = prog[vid] || {};
+    var chapterChanged = (p.c !== c);
     p.c = c; p.ts = Date.now(); p.mode = state.mode;
+    if (chapterChanged) { p.page = 0; p.scroll = 0; }
     prog[vid] = p; save(KEYS.prog, prog);
 
     countStats(vid, c);
@@ -448,18 +455,22 @@
     $("#prose").style.setProperty("--page", state.page);
     updatePageHud();
     saveProgressPage();
-    navigate("r/" + state.vid + "/" + state.c + "/p" + state.page, { replace: true });
+    // silent hash sync (no route() — avoids a full re-render on every page turn)
+    setHash("r/" + state.vid + "/" + state.c + "/p" + state.page, true);
     updateProgress();
   }
 
   function restorePage() {
-    var p = prog[state.vid];
-    if (p && p.mode === "paged" && p.c === state.c) state.page = p.page || 0;
+    // state.page is already resolved by route(); here we only clamp, apply and persist.
+    // Silent hash update only — calling navigate() here re-enters route()→renderReader()→
+    // applyMode()→rAF(restorePage) and loops forever in paged mode.
     state.page = clamp(state.page, 0, state.pageCount - 1);
     $("#prose").style.setProperty("--page", state.page);
     updatePageHud();
-    // sync hash if paged
-    if (state.mode === "paged") navigate("r/" + state.vid + "/" + state.c + "/p" + state.page, { replace: true });
+    if (state.mode === "paged") {
+      saveProgressPage();
+      setHash("r/" + state.vid + "/" + state.c + "/p" + state.page, true);
+    }
   }
 
   function saveProgressPage() {
@@ -494,7 +505,10 @@
     var book = bookById(state.vid);
     var chFrac = book ? state.c / Math.max(1, book.chapters.length - 1) : 0;
     var total = chFrac * 0.85 + pct * 0.15;
-    ember.style.transform = "scaleY(" + clamp(total, 0, 1) + ")";
+    var clamped = clamp(total, 0, 1);
+    ember.style.transform = "scaleY(" + clamped + ")";
+    var bar = $(".progress-ember");
+    if (bar) bar.setAttribute("aria-valuenow", String(Math.round(clamped * 100)));
   }
 
   /* ---------------- TOC ---------------- */
@@ -535,7 +549,8 @@
       BOOKS.forEach(function (b) {
         var chapters = chaptersOf(b.id);
         chapters.forEach(function (ch, ci) {
-          (ch.blocks || []).forEach(function (blk, bi) {
+          var pIdx = 0; // matches the data-pi attribute, which counts only "p" blocks
+          (ch.blocks || []).forEach(function (blk) {
             if (blk[0] !== "p") return;
             var t = String(blk[1]);
             var low = t.toLowerCase();
@@ -546,8 +561,9 @@
               var esn = esc(snip);
               var eq = esc(q);
               esn = esn.replace(new RegExp(quoteRe(eq), "gi"), function (m) { return "<b>" + m + "</b>"; });
-              results.push({ vid: b.id, c: ci, pi: bi, meta: b.title + " · " + ch.title, snip: esn });
+              results.push({ vid: b.id, c: ci, pi: pIdx, meta: b.title + " · " + ch.title, snip: esn });
             }
+            pIdx++;
           });
         });
       });
@@ -605,28 +621,65 @@
   }
   function renderMarks() {
     var box = $("#marks-list");
-    if (!bms.length) { box.innerHTML = '<div class="search-empty">Belum ada penanda. Tekan tombol bintang saat membaca untuk menandai paragraf.</div>'; return; }
+    if (!bms.length && !hls.length) {
+      box.innerHTML = '<div class="search-empty">Belum ada penanda. Tekan tombol bintang saat membaca untuk menandai paragraf, atau pilih teks untuk menyortot kutipan.</div>';
+      return;
+    }
     box.innerHTML = "";
-    bms.slice().reverse().forEach(function (m, i) {
-      var real = bms.length - 1 - i;
-      var book = bookById(m.vid);
-      var d = document.createElement("div");
-      d.className = "mark-item";
-      d.setAttribute("data-action", "mark-go");
-      d.setAttribute("data-vid", m.vid);
-      d.setAttribute("data-c", m.c);
-      d.setAttribute("data-pi", m.pi);
-      d.setAttribute("role", "button");
-      d.setAttribute("tabindex", "0");
-      d.innerHTML =
-        '<span class="mi-ico">✦</span>' +
-        '<div style="flex:1;min-width:0">' +
-        '<div class="mi-t">' + esc(m.text) + "</div>" +
-        '<div class="mi-meta">' + esc(book ? book.title : m.vid) + " · " + esc((book && book.chapters[m.c]) ? book.chapters[m.c].title : "Bab " + (m.c + 1)) + "</div>" +
-        "</div>" +
-        '<button class="iconbtn mark-del" data-action="mark-del" data-id="' + real + '" aria-label="Hapus penanda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>';
-      box.appendChild(d);
-    });
+    var sectHead = function (label) {
+      var h = document.createElement("div");
+      h.className = "marks-sect";
+      h.setAttribute("style", "font-family:var(--font-ui);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:14px 4px 6px;padding-bottom:4px;border-bottom:1px solid var(--line)");
+      h.textContent = label;
+      box.appendChild(h);
+    };
+    if (bms.length) {
+      sectHead("Penanda");
+      bms.slice().reverse().forEach(function (m, i) {
+        var real = bms.length - 1 - i;
+        var book = bookById(m.vid);
+        var d = document.createElement("div");
+        d.className = "mark-item";
+        d.setAttribute("data-action", "mark-go");
+        d.setAttribute("data-vid", m.vid);
+        d.setAttribute("data-c", m.c);
+        d.setAttribute("data-pi", m.pi);
+        d.setAttribute("role", "button");
+        d.setAttribute("tabindex", "0");
+        d.innerHTML =
+          '<span class="mi-ico">✦</span>' +
+          '<div style="flex:1;min-width:0">' +
+          '<div class="mi-t">' + esc(m.text) + "</div>" +
+          '<div class="mi-meta">' + esc(book ? book.title : m.vid) + " · " + esc((book && book.chapters[m.c]) ? book.chapters[m.c].title : "Bab " + (m.c + 1)) + "</div>" +
+          "</div>" +
+          '<button class="iconbtn mark-del" data-action="mark-del" data-id="' + real + '" aria-label="Hapus penanda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>';
+        box.appendChild(d);
+      });
+    }
+    if (hls.length) {
+      sectHead("Sorotan");
+      hls.slice().reverse().forEach(function (h, i) {
+        var real = hls.length - 1 - i;
+        var book = bookById(h.vid);
+        var d = document.createElement("div");
+        d.className = "mark-item hl-item";
+        d.setAttribute("data-action", "hl-go");
+        d.setAttribute("data-vid", h.vid);
+        d.setAttribute("data-c", h.c);
+        d.setAttribute("data-pi", h.pi);
+        d.setAttribute("data-id", real);
+        d.setAttribute("role", "button");
+        d.setAttribute("tabindex", "0");
+        d.innerHTML =
+          '<span class="mi-ico">▮</span>' +
+          '<div style="flex:1;min-width:0">' +
+          '<div class="mi-t">' + esc(h.text) + "</div>" +
+          '<div class="mi-meta">' + esc(book ? book.title : h.vid) + " · " + esc((book && book.chapters[h.c]) ? book.chapters[h.c].title : "Bab " + (h.c + 1)) + "</div>" +
+          "</div>" +
+          '<button class="iconbtn mark-del" data-action="hl-del" data-id="' + real + '" aria-label="Hapus sorotan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>';
+        box.appendChild(d);
+      });
+    }
   }
 
   /* ---------------- highlights ---------------- */
@@ -674,18 +727,24 @@
      SHEETS / OVERLAYS
      ============================================================ */
   var SCRIM = $("#scrim");
+  var lastFocus = null;
   function openSheet(id) {
     closeSheets();
     var el = $("#" + id);
     if (!el) return;
+    lastFocus = document.activeElement;
     el.classList.add("is-open");
     el.setAttribute("aria-hidden", "false");
     SCRIM.classList.add("is-open");
+    // move focus into the sheet so keyboard users land inside
+    var closer = el.querySelector('[data-action="close-sheets"]');
+    if (closer) closer.focus({ preventScroll: true });
   }
   function closeSheets() {
     $$(".sheet").forEach(function (s) { s.classList.remove("is-open"); s.setAttribute("aria-hidden", "true"); });
     SCRIM.classList.remove("is-open");
     closeSettings();
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) {} lastFocus = null; }
   }
   function closeSettings() {
     var pop = $("#settings-pop");
@@ -740,7 +799,7 @@
         // jump to paragraph
         requestAnimationFrame(function () {
           var target = $('#prose p[data-pi="' + spi + '"]');
-          if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (target) target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
         });
         break;
       }
@@ -752,7 +811,7 @@
         renderReader();
         requestAnimationFrame(function () {
           var t = $('#prose p[data-pi="' + mpi + '"]');
-          if (t) t.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (t) t.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
         });
         break;
       }
@@ -762,8 +821,25 @@
         break;
       }
       case "hl-click": {
-        var hid = el.getAttribute("data-id");
-        toast("Sorotan · buka panel penanda untuk pindah");
+        // open the marks panel so the user can review and jump to their highlights
+        renderMarks(); openSheet("sheet-marks");
+        break;
+      }
+      case "hl-go": {
+        var hgv = el.getAttribute("data-vid"), hgc = parseInt(el.getAttribute("data-c"), 10), hgpi = parseInt(el.getAttribute("data-pi"), 10);
+        closeSheets();
+        state.vid = hgv; state.c = hgc;
+        navigate("r/" + hgv + "/" + hgc, { replace: true });
+        renderReader();
+        requestAnimationFrame(function () {
+          var t = $('#prose p[data-pi="' + hgpi + '"]');
+          if (t) t.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+        break;
+      }
+      case "hl-del": {
+        var hdid = parseInt(el.getAttribute("data-id"), 10);
+        if (!isNaN(hdid)) { hls.splice(hdid, 1); save(KEYS.hls, hls); renderMarks(); renderReader(); toast("Sorotan dihapus"); }
         break;
       }
       case "toggle-bookmark": toggleCurrentBookmark(); break;
@@ -772,14 +848,14 @@
         state.mode = prefs.mode;
         applyPrefs(); savePrefs();
         applyMode();
-        if (prefs.mode === "paged") navigate("r/" + state.vid + "/" + state.c + "/p" + state.page, { replace: true });
-        else navigate("r/" + state.vid + "/" + state.c, { replace: true });
+        // applyMode already syncs the paged hash via restorePage; just keep URL consistent for scroll
+        if (prefs.mode === "scroll") setHash("r/" + state.vid + "/" + state.c, true);
         toast(prefs.mode === "paged" ? "Mode halaman" : "Mode gulir");
         break;
       }
       case "toggle-settings": toggleSettings(el); break;
       case "set-theme": { prefs.theme = el.getAttribute("data-t"); applyPrefs(); savePrefs(); toast("Tema " + prefs.theme); break; }
-      case "set-mode": { prefs.mode = el.getAttribute("data-m"); state.mode = prefs.mode; applyPrefs(); savePrefs(); applyMode(); if (prefs.mode === "paged") navigate("r/" + state.vid + "/" + state.c + "/p" + state.page, { replace: true }); else navigate("r/" + state.vid + "/" + state.c, { replace: true }); break; }
+      case "set-mode": { prefs.mode = el.getAttribute("data-m"); state.mode = prefs.mode; applyPrefs(); savePrefs(); applyMode(); if (prefs.mode === "scroll") setHash("r/" + state.vid + "/" + state.c, true); break; }
       case "set-font": { prefs.font = el.getAttribute("data-f"); applyPrefs(); savePrefs(); if (state.mode === "paged") recomputePaged(); break; }
       case "toggle-tts": if (window.MT_TTS) { MT_TTS.open(); if (!MT_TTS.playing) { var cp = currentParagraph(); MT_TTS.from(cp || $("#prose p[data-pi]")); } } break;
       case "tts-close": if (window.MT_TTS) MT_TTS.close(); break;
@@ -829,7 +905,12 @@
   document.addEventListener("keydown", function (e) {
     if ((e.key === "Enter" || e.key === " ") && e.target.closest) {
       var t = e.target.closest('[role="button"], .book-card, .film-card, .toc-item, .search-result, .mark-item');
-      if (t && t.getAttribute("data-action")) { e.preventDefault(); handle(t.getAttribute("data-action"), t, e); }
+      if (t && t.getAttribute("data-action")) {
+        e.preventDefault();
+        handle(t.getAttribute("data-action"), t, e);
+        // stop the global shortcut listener from also firing (e.g. Space advancing a paged page)
+        e.stopImmediatePropagation();
+      }
     }
   });
 
@@ -850,7 +931,7 @@
   /* ---------------- keyboard shortcuts ---------------- */
   document.addEventListener("keydown", function (e) {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
-      if (e.key === "Escape") { e.target.blur(); }
+      if (e.key === "Escape") { e.target.blur(); closeSheets(); if (window.MT_TTS) MT_TTS.close(); }
       return;
     }
     if (e.ctrlKey && e.key.toLowerCase() === "k") { e.preventDefault(); handle("open-search", null); return; }
@@ -956,7 +1037,15 @@
   /* ---------------- service worker (http/https only) ---------------- */
   if ("serviceWorker" in navigator && /^http/.test(location.protocol)) {
     window.addEventListener("load", function () {
-      navigator.serviceWorker.register("assets/sw.js").catch(function () { /* offline not available */ });
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        // unregister the legacy mis-scoped SW (assets/sw.js, scope /assets/) so the
+        // root SW at /sw.js controls the whole app and offline actually works.
+        return Promise.all(regs.map(function (r) {
+          try { if (/\/assets\/$/.test(new URL(r.scope).pathname)) return r.unregister(); } catch (e) {}
+        }));
+      }).then(function () {
+        return navigator.serviceWorker.register("sw.js").catch(function () { /* offline not available */ });
+      }).catch(function () {});
     });
   }
 
@@ -969,6 +1058,25 @@
   // expose
   window.MT_App = {
     state: state, prefs: prefs, prog: prog, bms: bms, hls: hls, stats: stats,
-    renderLib: renderLib, renderReader: renderReader, navigate: navigate, toast: toast
+    renderLib: renderLib, renderReader: renderReader, navigate: navigate, toast: toast,
+    // advance to the next chapter for TTS auto-continue; returns false at the last chapter
+    nextForTTS: function () {
+      if (state.view !== "reader") return false;
+      var max = chaptersOf(state.vid).length - 1;
+      if (state.c >= max) return false;
+      goChapter(state.c + 1);
+      return true;
+    },
+    // in paged mode, navigate to the page that contains the given paragraph (used by TTS)
+    ttsShowParagraph: function (el) {
+      if (state.mode !== "paged" || !el) return;
+      var prose = document.getElementById("prose");
+      var pw = parseFloat(prose.style.getPropertyValue("--page-w")) || 0;
+      var pg = parseFloat(prose.style.getPropertyValue("--page-gap")) || 0;
+      if (pw > 0) {
+        var relLeft = el.getBoundingClientRect().left - prose.getBoundingClientRect().left;
+        setPage(Math.round(relLeft / (pw + pg)));
+      }
+    }
   };
 })();

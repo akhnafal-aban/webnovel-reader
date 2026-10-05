@@ -46,7 +46,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 
 /* ---- Chip / pill button ---- */
 .chip {
-  min-height: 36px; padding: 0 var(--sp-4);
+  min-height: var(--tap); padding: 0 var(--sp-4);
   display: inline-flex; align-items: center; gap: var(--sp-2);
   border-radius: var(--r-pill);
   border: 1px solid var(--line-strong);
@@ -56,13 +56,13 @@ a { color: var(--accent-ink); text-decoration: none; }
 }
 .chip:hover { border-color: var(--accent); color: var(--accent-ink); }
 .chip:active { transform: var(--press); }
-.chip.is-active { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+.chip.is-active { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 
 /* ---- Primary button ---- */
 .btn {
   min-height: var(--tap); padding: 0 var(--sp-5);
   border-radius: var(--r-sm);
-  background: var(--accent); color: #1a1206;
+  background: var(--accent); color: var(--on-accent);
   font-weight: 700; font-size: 14px; letter-spacing: .01em;
   display: inline-flex; align-items: center; gap: var(--sp-2);
   transition: transform var(--dur-micro) var(--ease-out), filter var(--dur-micro) var(--ease-out), box-shadow var(--dur-micro) var(--ease-out);
@@ -77,6 +77,10 @@ a { color: var(--accent-ink); text-decoration: none; }
    APP SHELL
    ========================================================================= */
 #app-root { height: 100dvh; height: 100vh; display: flex; flex-direction: column; position: relative; isolation: isolate; }
+/* The <main id="app"> must fill the remaining height after the topbar AND be a flex
+   column so the active .view (flex:1) can fill it. Without this, .reader-stage collapses
+   to 0 height and both paged and scroll reading are clipped/invisible. */
+#app { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* Ambient side-glow (signature: breathing ember edge) */
 .ambient {
@@ -417,11 +421,12 @@ a { color: var(--accent-ink); text-decoration: none; }
   font-size: 14px;
 }
 .search-bar input:focus { outline: none; border-color: var(--accent); }
+.search-bar input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
 .search-result { padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); cursor: pointer; border-radius: var(--r-sm); margin: var(--sp-1) 0; transition: background var(--dur-micro) var(--ease-out); }
 .search-result:hover { background: var(--accent-soft); }
 .search-result .sr-meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
 .search-result .sr-snippet { font-family: var(--font-novel); font-size: 14px; color: var(--ink); margin-top: 4px; }
-.search-result .sr-snippet b { background: var(--accent); color: #1a1206; border-radius: 2px; padding: 0 .15em; font-weight: 700; }
+.search-result .sr-snippet b { background: var(--accent); color: var(--on-accent); border-radius: 2px; padding: 0 .15em; font-weight: 700; }
 .search-empty { padding: var(--sp-8) var(--sp-5); text-align: center; color: var(--ink-faint); font-family: var(--font-mono); font-size: 12px; }
 
 /* bookmarks */
@@ -461,7 +466,7 @@ a { color: var(--accent-ink); text-decoration: none; }
 
 .swatches { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .swatch {
-  width: 34px; height: 34px; border-radius: var(--r-sm); cursor: pointer;
+  width: var(--tap); height: var(--tap); border-radius: var(--r-sm); cursor: pointer;
   border: 2px solid transparent; position: relative; transition: transform var(--dur-micro) var(--ease-out);
 }
 .swatch:hover { transform: scale(1.1); }
@@ -473,10 +478,11 @@ a { color: var(--accent-ink); text-decoration: none; }
 .swatch[data-t="moss"]   { background: linear-gradient(135deg, #e7ece4, #c8d4c2); }
 
 .seg { display: flex; gap: 4px; background: var(--bg-sink); padding: 3px; border-radius: var(--r-sm); border: 1px solid var(--line); }
-.seg button { flex: 1; min-height: 32px; border-radius: var(--r-xs); font-size: 12px; font-weight: 600; color: var(--ink-soft); transition: all var(--dur-micro) var(--ease-out); }
-.seg button.is-active { background: var(--accent); color: #1a1206; }
+.seg button { flex: 1; min-height: var(--tap); border-radius: var(--r-xs); font-size: 12px; font-weight: 600; color: var(--ink-soft); transition: all var(--dur-micro) var(--ease-out); }
+.seg button.is-active { background: var(--accent); color: var(--on-accent); }
 
 .range { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; border-radius: 2px; background: var(--line-strong); outline: none; }
+.range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .range::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px var(--bg-elev); }
 .range::-moz-range-thumb { width: 18px; height: 18px; border: none; border-radius: 50%; background: var(--accent); cursor: pointer; }
 
@@ -489,18 +495,19 @@ a { color: var(--accent-ink); text-decoration: none; }
   background: var(--bg-elev); border: 1px solid var(--line-strong); border-radius: var(--r-lg);
   box-shadow: var(--shadow-stage); padding: var(--sp-4) var(--sp-5);
   display: flex; flex-direction: column; gap: var(--sp-3);
-  transition: transform var(--dur-mid) var(--ease-spring);
+  transition: transform var(--dur-mid) var(--ease-spring), visibility var(--dur-mid);
+  visibility: hidden;
 }
-.tts-panel.is-open { transform: translateX(-50%) translateY(0); }
+.tts-panel.is-open { transform: translateX(-50%) translateY(0); visibility: visible; }
 .tts-top { display: flex; align-items: center; gap: var(--sp-3); }
 .tts-top h3 { font-family: var(--font-novel); font-size: 16px; font-weight: 700; flex: 1; }
 .tts-now { font-family: var(--font-novel); font-size: 13px; color: var(--ink-soft); min-height: 2.4em; line-height: 1.4; padding: var(--sp-2) var(--sp-3); background: var(--bg-sink); border-radius: var(--r-sm); border: 1px solid var(--line); }
 .tts-controls { display: flex; align-items: center; gap: var(--sp-2); }
-.tts-controls .tts-play { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: #1a1206; flex: none; }
+.tts-controls .tts-play { width: 52px; height: 52px; border-radius: 50%; background: var(--accent); color: var(--on-accent); flex: none; }
 .tts-controls .tts-play svg { width: 22px; height: 22px; }
 .tts-opts { display: flex; align-items: center; gap: var(--sp-4); flex: 1; }
 .tts-opts label { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); display: flex; flex-direction: column; gap: 4px; }
-.tts-opts select { min-height: 32px; background: var(--bg-sink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 var(--sp-2); font-size: 12px; max-width: 150px; }
+.tts-opts select { min-height: var(--tap); background: var(--bg-sink); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 var(--sp-2); font-size: 12px; max-width: 150px; }
 
 /* =========================================================================
    LIGHTBOX
@@ -511,6 +518,7 @@ a { color: var(--accent-ink); text-decoration: none; }
   display: flex; align-items: center; justify-content: center;
   opacity: 0; visibility: hidden; transition: opacity var(--dur-mid) var(--ease-out), visibility var(--dur-mid);
   touch-action: none;
+  overflow: hidden; /* clip lb-tools pill so it never leaks past viewport (no body h-scroll when closed on mobile) */
 }
 .lightbox.is-open { opacity: 1; visibility: visible; }
 .lb-stage { position: relative; width: 100%; height: 100%; overflow: hidden; display: flex; align-items: center; justify-content: center; }
@@ -537,7 +545,7 @@ a { color: var(--accent-ink); text-decoration: none; }
   background: rgba(20,18,15,.7); border: 1px solid rgba(255,255,255,.12); border-radius: var(--r-pill);
   padding: 6px; backdrop-filter: blur(10px);
 }
-.lb-tools button { color: #fff; width: 40px; height: 40px; border-radius: 50%; }
+.lb-tools button { color: #fff; width: var(--tap); height: var(--tap); border-radius: 50%; }
 .lb-tools button:hover { background: rgba(255,255,255,.12); color: var(--accent-ink); }
 .lb-tools .lb-z { font-family: var(--font-mono); font-size: 12px; color: #fff; padding: 0 var(--sp-3); min-width: 56px; text-align: center; }
 .lb-hint { position: absolute; bottom: var(--sp-5); right: var(--sp-5); z-index: 3; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; color: rgba(255,255,255,.5); }
@@ -586,4 +594,20 @@ a { color: var(--accent-ink); text-decoration: none; }
   .reader-toolbar { padding: var(--sp-1) var(--sp-2); gap: 0; }
   .continue { padding: var(--sp-4); gap: var(--sp-3); }
   .continue-cover { width: 56px; height: 80px; }
+}
+
+/* ---- Narrow phones: reader toolbar holds 6 primary controls + title.
+   Chapter prev/next are redundant here (TOC, swipe in paged mode, [ ] keys)
+   and 8×44px buttons + title overflow ≤430px, crushing the chapter title.
+   Hide them on phones so the title stays legible and nothing overflows. ---- */
+@media (max-width: 430px) {
+  .reader-tools [data-action="prev-chap"],
+  .reader-tools [data-action="next-chap"] { display: none; }
+}
+
+/* ---- Lightbox tool pill: on phones 6×44 + gap overflows 320px.
+   Tighten gap/padding so all six controls stay 44px tap-targets and centered. ---- */
+@media (max-width: 480px) {
+  .lb-tools { gap: 2px; padding: 4px; }
+  .lb-hint { display: none; }
 }

@@ -49,7 +49,7 @@
     if (!items || !items.length) return;
     list = items.map(function (it) {
       if (typeof it === "string") return { src: it, caption: caption || "" };
-      return { src: it.src, caption: it.caption || caption || "", orient: it.orient };
+      return { src: it.src, caption: it.caption || it.cap || caption || "", orient: it.orient };
     });
     i = clamp(index || 0, 0, list.length - 1);
     isOpen = true;

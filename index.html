@@ -95,7 +95,7 @@
         </div>
 
         <div class="reader-stage">
-          <div class="progress-ember"><i id="ember-fill"></i></div>
+          <div class="progress-ember" role="progressbar" aria-label="Progres baca" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="ember-fill"></i></div>
           <div id="tap-zones" class="tap-zones hidden">
             <span class="edge-l" data-action="page-prev" aria-hidden="true"></span>
             <span data-action="toggle-tap-zones" aria-hidden="true"></span>
@@ -116,7 +116,7 @@
     <div id="scrim" class="scrim" data-action="close-sheets" aria-hidden="true"></div>
 
     <!-- ===================== SHEET: TOC ===================== -->
-    <aside id="sheet-toc" class="sheet" role="dialog" aria-label="Daftar isi" aria-hidden="true">
+    <aside id="sheet-toc" class="sheet" role="dialog" aria-modal="true" aria-label="Daftar isi" aria-hidden="true">
       <div class="sheet-head">
         <h2>Daftar Isi</h2>
         <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
@@ -125,19 +125,19 @@
     </aside>
 
     <!-- ===================== SHEET: SEARCH ===================== -->
-    <aside id="sheet-search" class="sheet" role="dialog" aria-label="Pencarian" aria-hidden="true">
+    <aside id="sheet-search" class="sheet" role="dialog" aria-modal="true" aria-label="Pencarian" aria-hidden="true">
       <div class="sheet-head">
         <h2>Cari</h2>
         <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
       </div>
       <div class="search-bar">
-        <input id="search-input" type="search" placeholder="Cari kata atau frasa…" autocomplete="off" spellcheck="false" />
+        <input id="search-input" type="search" placeholder="Cari kata atau frasa…" autocomplete="off" spellcheck="false" aria-label="Cari di semua buku" />
       </div>
       <div class="sheet-body" id="search-results"></div>
     </aside>
 
     <!-- ===================== SHEET: MARKS ===================== -->
-    <aside id="sheet-marks" class="sheet" role="dialog" aria-label="Penanda & sorotan" aria-hidden="true">
+    <aside id="sheet-marks" class="sheet" role="dialog" aria-modal="true" aria-label="Penanda & sorotan" aria-hidden="true">
       <div class="sheet-head">
         <h2>Penanda</h2>
         <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
@@ -146,7 +146,7 @@
     </aside>
 
     <!-- ===================== SHEET: STATS ===================== -->
-    <aside id="sheet-stats" class="sheet" role="dialog" aria-label="Statistik" aria-hidden="true">
+    <aside id="sheet-stats" class="sheet" role="dialog" aria-modal="true" aria-label="Statistik" aria-hidden="true">
       <div class="sheet-head">
         <h2>Statistik</h2>
         <button class="iconbtn" data-action="close-sheets" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
@@ -182,15 +182,15 @@
       </div>
       <div class="pop-group">
         <div class="pop-label"><span>Ukuran</span><span class="val" id="fz-val">19px</span></div>
-        <input class="range" id="rng-fz" type="range" min="15" max="26" step="1" value="19" />
+        <input class="range" id="rng-fz" type="range" min="15" max="26" step="1" value="19" aria-label="Ukuran fonta" />
       </div>
       <div class="pop-group">
         <div class="pop-label"><span>Jarak baris</span><span class="val" id="lh-val">1.75</span></div>
-        <input class="range" id="rng-lh" type="range" min="1.4" max="2.2" step="0.05" value="1.75" />
+        <input class="range" id="rng-lh" type="range" min="1.4" max="2.2" step="0.05" value="1.75" aria-label="Jarak baris" />
       </div>
       <div class="pop-group">
         <div class="pop-label"><span>Lebar kolom</span><span class="val" id="col-val">34rem</span></div>
-        <input class="range" id="rng-col" type="range" min="24" max="46" step="1" value="34" />
+        <input class="range" id="rng-col" type="range" min="24" max="46" step="1" value="34" aria-label="Lebar kolom" />
       </div>
     </div>
 
@@ -202,18 +202,18 @@
       </div>
       <div class="tts-now" id="tts-now">Tekan putar untuk mulai membaca dari paragraf ini.</div>
       <div class="tts-controls">
-        <button class="tts-play iconbtn" data-action="tts-toggle" aria-label="Putar / jeda">
+        <button class="tts-play iconbtn" data-action="tts-toggle" aria-label="Putar / jeda" aria-pressed="false">
           <svg id="tts-play-ico" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
         <div class="tts-opts">
-          <label>Kecepatan <input class="range" id="tts-rate" type="range" min="0.6" max="2" step="0.05" value="1" /></label>
-          <label>Suara <select id="tts-voice"></select></label>
+          <label>Kecepatan <input class="range" id="tts-rate" type="range" min="0.6" max="2" step="0.05" value="1" aria-label="Kecepatan baca" /></label>
+          <label>Suara <select id="tts-voice" aria-label="Pilih suara"></select></label>
         </div>
       </div>
     </div>
 
     <!-- ===================== LIGHTBOX ===================== -->
-    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-label="Ilustrasi">
+    <div id="lightbox" class="lightbox" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Ilustrasi">
       <div class="lb-bar">
         <span class="lb-count" id="lb-count">—</span>
         <span class="lb-cap" id="lb-cap"></span>

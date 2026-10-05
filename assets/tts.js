@@ -16,6 +16,36 @@
 
   var synth = window.speechSynthesis;
   var supported = !!synth && "SpeechSynthesisUtterance" in window;
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Sentence-level highlight via the CSS Custom Highlight API. It highlights a Range over
+  // text nodes WITHOUT mutating the DOM, so existing <mark class="hl"> highlights stay intact
+  // (the brief requires highlights and TTS to coexist). No-ops on browsers without the API.
+  var hlAPI = !!(window.Highlight && window.CSS && CSS.highlights);
+  if (hlAPI) {
+    var __hlStyle = document.createElement("style");
+    __hlStyle.textContent = "::highlight(tts-sent){background-color:var(--accent-soft);color:inherit;}";
+    document.head.appendChild(__hlStyle);
+  }
+  function rangeFromOffsets(root, start, end) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var node, off = 0, rs = null, re = null;
+    while ((node = walker.nextNode())) {
+      var len = node.nodeValue.length;
+      if (rs === null && off + len >= start) rs = { node: node, offset: Math.max(0, start - off) };
+      if (re === null && off + len >= end) re = { node: node, offset: Math.max(0, end - off) };
+      off += len;
+      if (rs !== null && re !== null) break;
+    }
+    var range = document.createRange();
+    if (rs && re) { range.setStart(rs.node, Math.min(rs.offset, rs.node.nodeValue.length)); range.setEnd(re.node, Math.min(re.offset, re.node.nodeValue.length)); }
+    else if (rs) { range.setStart(rs.node, Math.min(rs.offset, rs.node.nodeValue.length)); range.collapse(true); }
+    return range;
+  }
+  function applySentenceHighlight(s) {
+    if (!hlAPI || !s || s.el == null || s.start == null) return;
+    try { CSS.highlights.set("tts-sent", new Highlight(rangeFromOffsets(s.el, s.start, s.end))); } catch (e) {}
+  }
 
   var state = {
     open: false,
@@ -56,6 +86,7 @@
       if (n.tagName === "P") n.classList.remove("tts-active");
       else n.parentNode && n.parentNode.removeChild(n);
     });
+    if (hlAPI) { try { CSS.highlights.delete("tts-sent"); } catch (e) {} }
   }
 
   function splitSentences(text) {
@@ -77,7 +108,16 @@
 
   function speakFrom(idx) {
     clearActive();
-    if (idx >= state.sentences.length) { state.playing = false; updateIco(); return; }
+    if (idx >= state.sentences.length) {
+      // End of chapter: auto-continue to the next chapter while reading (brief: "auto-lanjut bab").
+      if (state.playing && window.MT_App && MT_App.nextForTTS && MT_App.nextForTTS()) {
+        buildFromProse();
+        state.idx = 0;
+        speakFrom(0);
+        return;
+      }
+      state.playing = false; updateIco(); return;
+    }
     var s = state.sentences[idx];
     if (!s || !s.el) { state.idx = idx + 1; speakFrom(state.idx); return; }
     var u = new SpeechSynthesisUtterance(s.text);
@@ -87,10 +127,15 @@
     if (v) u.voice = v;
     u.lang = v ? v.lang : "id-ID";
 
-    // highlight sentence by wrapping — but we keep it simple: highlight paragraph + show text
+    // Highlight the exact sentence being read (Highlight API) + softer paragraph state.
     s.el.classList.add("tts-active");
+    applySentenceHighlight(s);
     nowEl.textContent = s.text;
-    s.el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (window.MT_App && MT_App.state.mode === "paged" && MT_App.ttsShowParagraph) {
+      MT_App.ttsShowParagraph(s.el); // bring the sentence's page into view in paged mode
+    } else {
+      s.el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+    }
 
     u.onboundary = function (e) {
       if (e.name === "sentence" || e.charLength) {
@@ -145,11 +190,16 @@
     }
     var arr = [];
     ps.forEach(function (p) {
-      var text = p.textContent.replace(/\s+/g, " ").trim();
-      if (!text) return;
-      splitSentences(text).forEach(function (s) {
-        s = s.trim();
-        if (s) arr.push({ el: p, text: s });
+      var text = p.textContent; // raw textContent; offsets map 1:1 onto the paragraph's text nodes
+      if (!text || !text.trim()) return;
+      var cursor = 0;
+      splitSentences(text).forEach(function (piece) {
+        var trimmed = piece.trim();
+        if (!trimmed) { cursor += piece.length; return; }
+        var sStart = text.indexOf(trimmed, cursor);
+        if (sStart < 0) sStart = cursor;
+        arr.push({ el: p, text: trimmed, start: sStart, end: sStart + trimmed.length });
+        cursor = sStart + trimmed.length;
       });
     });
     setSentences(arr);
@@ -171,6 +221,8 @@
     playIco.innerHTML = state.playing
       ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
       : '<path d="M8 5v14l11-7z"/>';
+    var btn = document.querySelector('[data-action="tts-toggle"]');
+    if (btn) btn.setAttribute("aria-pressed", state.playing ? "true" : "false");
   }
 
   rateEl.addEventListener("input", function () {
