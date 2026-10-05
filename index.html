@@ -6,10 +6,10 @@
   <meta name="color-scheme" content="dark light" />
   <meta name="description" content="Pembaca novel ringan bahasa Indonesia — Mushoku Tensei. Nyaman, sinematik, offline." />
   <title>MT Reader — Pembaca Novel</title>
-  <link rel="manifest" href="manifest.webmanifest?v=20" />
-  <link rel="icon" href="img/v15/cover/cover.jpg?v=20" />
-  <link rel="stylesheet" href="assets/tokens.css?v=20" />
-  <link rel="stylesheet" href="assets/app.css?v=20" />
+  <link rel="manifest" href="manifest.webmanifest?v=21" />
+  <link rel="icon" href="img/v15/cover/cover.jpg?v=21" />
+  <link rel="stylesheet" href="assets/tokens.css?v=21" />
+  <link rel="stylesheet" href="assets/app.css?v=21" />
 <script>
 // Unregister legacy SW (assets/sw.js scope /assets/) sebelum app load
 if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
@@ -251,6 +251,19 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
         <input class="range" id="rng-ambient-vol" type="range" min="0" max="1" step="0.05" value="0.35" aria-label="Volume suasana" />
       </div>
       <div class="pop-group">
+        <div class="pop-label"><span>Musik</span><span class="val" id="music-val">tanpa</span></div>
+        <div class="seg" id="seg-music">
+          <button data-action="set-music" data-m="off">Tanpa</button>
+          <button data-action="set-music" data-m="calm">Santai</button>
+          <button data-action="set-music" data-m="sad">Sedih</button>
+          <button data-action="set-music" data-m="tense">Tegang</button>
+          <button data-action="set-music" data-m="epic">Epos</button>
+        </div>
+        <div class="pop-label" style="margin-top:10px"><span>Volume musik</span><span class="val" id="music-vol-val">40%</span></div>
+        <input class="range" id="rng-music-vol" type="range" min="0" max="1" step="0.05" value="0.4" aria-label="Volume musik" />
+      </div>
+      <div class="pop-note">Suasana dari rekaman lapangan (CC0/domain publik, archive.org) · Musik oleh Kevin MacLeod — incompetech.com, CC-BY 4.0</div>
+      <div class="pop-group">
         <div class="pop-label"><span>Paragraf</span><span class="val" id="align-val">kiri</span></div>
         <div class="seg" id="seg-align">
           <button data-action="set-align" data-al="left">Kiri</button>
@@ -358,25 +371,25 @@ if ("serviceWorker" in navigator && /^https?:/.test(location.protocol)) {
   </div>
 
   <!-- ===================== DATA (preload, defines globals) ===================== -->
-  <script src="data/books.js?v=20"></script>
-  <script src="data/v15/chapters.js?v=20"></script>
-  <script src="data/v16/chapters.js?v=20"></script>
-  <script src="data/v17/chapters.js?v=20"></script>
-  <script src="data/v18/chapters.js?v=20"></script>
-  <script src="data/v19/chapters.js?v=20"></script>
-  <script src="data/v20/chapters.js?v=20"></script>
-  <script src="data/v21/chapters.js?v=20"></script>
-  <script src="data/v22/chapters.js?v=20"></script>
-  <script src="data/v23/chapters.js?v=20"></script>
+  <script src="data/books.js?v=21"></script>
+  <script src="data/v15/chapters.js?v=21"></script>
+  <script src="data/v16/chapters.js?v=21"></script>
+  <script src="data/v17/chapters.js?v=21"></script>
+  <script src="data/v18/chapters.js?v=21"></script>
+  <script src="data/v19/chapters.js?v=21"></script>
+  <script src="data/v20/chapters.js?v=21"></script>
+  <script src="data/v21/chapters.js?v=21"></script>
+  <script src="data/v22/chapters.js?v=21"></script>
+  <script src="data/v23/chapters.js?v=21"></script>
   <!-- vendored anime.js v4.5.0 (offline) -->
-  <script src="assets/vendor/animejs.umd.js?v=20"></script>
+  <script src="assets/vendor/animejs.umd.js?v=21"></script>
   <!-- app modules -->
-  <script src="data/meta_a.js?v=20"></script>
-  <script src="data/meta_b.js?v=20"></script>
-  <script src="assets/sync.js?v=20"></script>
-  <script src="assets/lightbox.js?v=20"></script>
-  <script src="assets/tts.js?v=20"></script>
-  <script src="assets/ambient.js?v=20"></script>
-  <script src="assets/app.js?v=20"></script>
+  <script src="data/meta_a.js?v=21"></script>
+  <script src="data/meta_b.js?v=21"></script>
+  <script src="assets/sync.js?v=21"></script>
+  <script src="assets/lightbox.js?v=21"></script>
+  <script src="assets/tts.js?v=21"></script>
+  <script src="assets/ambient.js?v=21"></script>
+  <script src="assets/app.js?v=21"></script>
 </body>
 </html>

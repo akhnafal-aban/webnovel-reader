@@ -71,6 +71,7 @@
     autoScroll: false, autoScrollSpeed: 1,
     focus: "off", bionic: false, dys: false,
     ambient: "off", ambientVol: 0.35,
+    music: "off", musicVol: 0.4,
     goalBab: 0, themeAuto: "off", align: "left", indent: false,
     recapSeen: {}
   });
@@ -246,6 +247,11 @@
     $$("#seg-ambient button").forEach(function (b) { var on = b.getAttribute("data-a") === prefs.ambient; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
     var rngAmVol = $("#rng-ambient-vol"); if (rngAmVol) rngAmVol.value = prefs.ambientVol;
     var amVolV = $("#ambient-vol-val"); if (amVolV) amVolV.textContent = Math.round(prefs.ambientVol * 100) + "%";
+    // music moods
+    var muV = $("#music-val"); if (muV) muV.textContent = prefs.music === "off" ? "tanpa" : prefs.music;
+    $$("#seg-music button").forEach(function (b) { var on = b.getAttribute("data-m") === prefs.music; b.classList.toggle("is-active", on); b.setAttribute("aria-pressed", String(on)); });
+    var rngMuVol = $("#rng-music-vol"); if (rngMuVol) rngMuVol.value = prefs.musicVol;
+    var muVolV = $("#music-vol-val"); if (muVolV) muVolV.textContent = Math.round(prefs.musicVol * 100) + "%";
     updateFlame();
   }
   function resolveTheme() {
@@ -1447,6 +1453,17 @@
         toast(prefs.ambient === "off" ? "Suasana mati" : "Suasana " + prefs.ambient);
         break;
       }
+      /* ---- feature 6b: music moods ---- */
+      case "set-music": {
+        prefs.music = el.getAttribute("data-m");
+        applyPrefs(); savePrefs();
+        if (window.MT_AMBIENT) {
+          if (prefs.music === "off") MT_AMBIENT.stopMusic();
+          else MT_AMBIENT.playMusic(prefs.music);
+        }
+        toast(prefs.music === "off" ? "Musik mati" : "Musik " + prefs.music);
+        break;
+      }
       /* ---- feature 12: justify + indent ---- */
       case "set-align": {
         prefs.align = el.getAttribute("data-al");
@@ -1638,6 +1655,12 @@
     prefs.ambientVol = parseFloat(this.value);
     applyPrefs(); savePrefs();
     if (window.MT_AMBIENT) MT_AMBIENT.setVol(prefs.ambientVol);
+  });
+  var rngMuVol = $("#rng-music-vol");
+  if (rngMuVol) rngMuVol.addEventListener("input", function () {
+    prefs.musicVol = parseFloat(this.value);
+    applyPrefs(); savePrefs();
+    if (window.MT_AMBIENT) MT_AMBIENT.setMusicVol(prefs.musicVol);
   });
   $("#search-input").addEventListener("input", function () { runSearch(this.value); });
 

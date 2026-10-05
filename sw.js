@@ -4,7 +4,7 @@
    network-first for JS/CSS/data/HTML (always fresh when online),
    cache-first for images. Offline-friendly PWA. Zero deps.
    ========================================================================= */
-var CACHE = "mt-reader-v5";
+var CACHE = "mt-reader-v6";
 var CORE = [
   "./",
   "./index.html",
@@ -19,6 +19,14 @@ var CORE = [
   "./data/books.js",
   "./data/meta_a.js",
   "./data/meta_b.js",
+  "./assets/audio/loop-rain.m4a",
+  "./assets/audio/loop-fire.m4a",
+  "./assets/audio/loop-wind.m4a",
+  "./assets/audio/loop-night.m4a",
+  "./assets/audio/music-calm.m4a",
+  "./assets/audio/music-sad.m4a",
+  "./assets/audio/music-tense.m4a",
+  "./assets/audio/music-epic.m4a",
   "./manifest.webmanifest",
   "./data/v15/chapters.js",
   "./img/v15/cover/cover.jpg",

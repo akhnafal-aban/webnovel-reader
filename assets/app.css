@@ -829,3 +829,6 @@ body.indent-on .prose .pov-line { text-indent: 0; }
   .fab-as .fab-as-ripple { animation: none !important; }
   .fab-as, .as-play { transition: none; }
 }
+
+/* music/ambience credit note inside the settings popover */
+.pop-note { font-size: 10px; font-family: var(--font-mono); color: var(--ink-faint); line-height: 1.6; margin-top: 2px; border-top: 1px solid var(--line); padding-top: 10px; }
