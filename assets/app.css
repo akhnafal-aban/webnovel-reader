@@ -660,7 +660,15 @@ a { color: var(--accent-ink); text-decoration: none; }
 #lf-bottom { bottom: 0; height: 26vh; background: linear-gradient(to top, var(--bg) 35%, transparent); }
 .lf-ruler { top: 50%; transform: translateY(-50%); height: 44px; background: var(--accent-soft); border-top: 1px solid var(--accent); border-bottom: 1px solid var(--accent); }
 #reader-scroller.lf-band .prose p.lf-dim,
-#reader-scroller.lf-ruler-on .prose p.lf-dim { opacity: .14; transition: opacity var(--dur-tiny) var(--ease-out); }
+#reader-scroller.lf-ruler-on .prose p.lf-dim {
+  opacity: .14;
+  transition: opacity 90ms var(--ease-out);
+}
+#reader-scroller.lf-band .prose p,
+#reader-scroller.lf-ruler-on .prose p {
+  transition: opacity 90ms var(--ease-out);
+}
+.lf-ruler { pointer-events: none; box-shadow: 0 0 18px -4px var(--accent); }
 
 /* ---- 2. Bionic reading ---- */
 .prose .fx { font-weight: 700; color: inherit; text-decoration: none; }

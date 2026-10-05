@@ -276,31 +276,55 @@
     if (top) top.hidden = !band;
     if (bottom) bottom.hidden = !band;
     if (ruler) ruler.hidden = !rul;
-    if (enabled) markFocusParagraphs();
+    if (enabled) markFocusParagraphs(true);
     else clearFocusDim();
   }
   function clearFocusDim() {
     $$("#prose p[data-pi]").forEach(function (p) { p.classList.remove("lf-dim"); });
+    lfCache = null;
   }
-  function markFocusParagraphs() {
-    var stage = $(".reader-stage");
+  var lfCache = null; // { prose, items:[{el, off}] } — rebuilt on render/invalidate
+  function lfBuildIfNeeded() {
     var prose = $("#prose");
-    if (!stage || !prose) return;
+    if (!prose) return false;
+    var stale = !lfCache || lfCache.prose !== prose || !lfCache.items.length || !lfCache.items[0].el.isConnected;
+    if (stale) {
+      lfCache = { prose: prose, items: $$("#prose p[data-pi]").map(function (p) {
+        return { el: p, off: p.offsetTop, h: p.offsetHeight };
+      }) };
+    }
+    return true;
+  }
+  function markFocusParagraphs(force) {
+    var stage = $(".reader-stage");
+    var scroller = $("#reader-scroller");
+    if (!stage || !scroller) return;
     var vh = stage.clientHeight;
     if (!vh) return;
+    if (!lfBuildIfNeeded()) return;
+    force = force || false;
     var center = vh / 2;
-    var half = prefs.focus === "band" ? vh * 0.175 : 22;
-    $$("#prose p[data-pi]").forEach(function (p) {
-      var r = p.getBoundingClientRect();
-      var pc = r.top + r.height / 2;
-      p.classList.toggle("lf-dim", Math.abs(pc - center) > half);
-    });
+    var half = prefs.focus === "band" ? vh * 0.175 : Math.max(30, vh * 0.055);
+    var best = null, bestD = 1e9;
+    var items = lfCache.items;
+    var st = scroller.scrollTop;
+    for (var j = 0; j < items.length; j++) {
+      var it = items[j], p = it.el;
+      var pc = it.off + it.h / 2 - st;
+      var d = Math.abs(pc - center);
+      if (d < bestD) { bestD = d; best = p; }
+      var dim = d > half;
+      if (dim !== p.classList.contains("lf-dim")) p.classList.toggle("lf-dim", dim);
+    }
+    // ruler: at least the closest paragraph stays focused (it would otherwise never
+    // land inside a thin band, making the rule look broken)
+    if (prefs.focus === "ruler" && best) best.classList.remove("lf-dim");
   }
-  var lfTimer = 0;
+  var lfRAF = 0;
   function lfScrollMark() {
     if (state.mode !== "scroll" || prefs.focus === "off") return;
-    clearTimeout(lfTimer);
-    lfTimer = setTimeout(markFocusParagraphs, 100);
+    if (lfRAF) return;
+    lfRAF = requestAnimationFrame(function () { lfRAF = 0; markFocusParagraphs(false); });
   }
 
   /* ============================================================
